@@ -32,7 +32,7 @@
   --shadow-lg: 0 12px 40px rgba(26,26,46,0.18);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
+html, body { height: 100%; height: 100dvh; max-height: 100dvh; }
 body {
   font-family: 'DM Sans', system-ui, sans-serif;
   background: var(--ink);
@@ -40,6 +40,8 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
   -webkit-font-smoothing: antialiased;
 }
 :focus-visible { outline: 2px solid var(--glacier); outline-offset: 2px; border-radius: 4px; }
@@ -176,8 +178,8 @@ header .subtitle {
 .map-style-group { display: flex; align-items: center; gap: 6px; }
 
 /* ---------- layout ---------- */
-.stage { flex: 1; display: flex; min-height: 0; position: relative; }
-#map { flex: 1; min-width: 0; background: #dfe6e4; }
+.stage { flex: 1 1 auto; display: flex; min-height: 0; position: relative; }
+#map { flex: 1 1 auto; min-width: 0; min-height: 0; width: 100%; height: 100%; background: #dfe6e4; }
 .leaflet-container { font-family: 'DM Sans', system-ui, sans-serif; }
 
 /* ---------- sidebar ---------- */
@@ -295,6 +297,49 @@ header .subtitle {
 .legend-sep { border: 0; border-top: 1px solid var(--line); margin: 9px 0 8px; }
 .legend-note { font-size: 0.68rem; color: var(--mist); line-height: 1.5; }
 #sidebarToggle { display: none; }
+header #sidebarToggle {
+  background: rgba(255,255,255,0.1);
+  color: var(--snow);
+  border-color: rgba(255,255,255,0.18);
+  height: 30px;
+  padding: 0 10px;
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+header #sidebarToggle:hover {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.3);
+}
+
+.drawer-filters {
+  display: none;
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--line);
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.drawer-filters .toggle-group { gap: 6px; }
+.drawer-filters .toggle-btn,
+.drawer-filters .country-btn {
+  font-size: 0.72rem;
+  padding: 5px 10px;
+}
+.map-basemap {
+  display: none;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 900;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 3px;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(6px);
+}
+.map-basemap .style-btn { padding: 4px 9px; font-size: 0.7rem; }
 
 /* ---------- markers ---------- */
 .pin-wrap { position: relative; }
@@ -330,6 +375,7 @@ header .subtitle {
 .leaflet-popup-content-wrapper { border-radius: 14px; padding: 0; overflow: hidden; box-shadow: var(--shadow-lg); }
 .leaflet-popup-content { margin: 0; width: 320px !important; line-height: 1.5; }
 .leaflet-popup-tip { box-shadow: var(--shadow-md); }
+.leaflet-popup-close-button { z-index: 2; }
 .popup-header { padding: 14px 16px 12px; color: #fff; }
 .popup-header.resort  { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
 .popup-header.village { background: linear-gradient(135deg, #16a34a 0%, #14532d 100%); }
@@ -352,6 +398,7 @@ header .subtitle {
   display: block; font-weight: 700; font-size: 0.92rem; color: var(--ink);
   overflow: hidden; text-overflow: ellipsis;
 }
+.stat-val.price { font-size: 0.84rem; letter-spacing: -0.02em; }
 .stat-label {
   display: block; font-size: 0.6rem; text-transform: uppercase;
   letter-spacing: 0.09em; color: var(--mist); margin-top: 2px;
@@ -377,12 +424,22 @@ header .subtitle {
 
 /* ---------- responsive ---------- */
 @media (max-width: 900px) {
-  header { height: auto; padding: 10px 14px; flex-wrap: wrap; }
+  header {
+    height: 44px;
+    padding: 0 8px 0 12px;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  header h1 { font-size: 0.98rem; }
+  .header-left { flex-shrink: 0; }
   header .subtitle, .header-count { display: none; }
-  .search-wrap { flex: 1 1 100%; }
-  .controls { padding: 8px 14px; gap: 10px; }
-  .controls .sep, .controls .controls-label { display: none; }
-  #sidebarToggle { display: inline-flex; }
+  .search-wrap { flex: 1 1 auto; min-width: 0; max-width: none; }
+  #search { height: 30px; font-size: 16px; padding: 0 28px 0 32px; }
+  .controls { display: none; }
+  header #sidebarToggle { display: inline-flex; }
+  .drawer-filters { display: flex; }
+  .map-basemap { display: flex; }
+  .stage, #map { flex: 1 1 auto; min-height: 0; }
   #sidebar {
     position: absolute; inset: 0 auto 0 0;
     width: min(88%, 336px);
@@ -393,7 +450,20 @@ header .subtitle {
   #sidebar.open { transform: translateX(0); }
   .legend { display: none; }
   .map-overlay { bottom: 12px; font-size: 0.74rem; padding: 6px 7px 6px 13px; }
-  .leaflet-popup-content { width: 250px !important; }
+  .leaflet-popup-content { width: min(272px, calc(100vw - 44px)) !important; }
+  .popup-header { padding: 10px 12px 8px; }
+  .popup-name { font-size: 1.02rem; }
+  .popup-body { padding: 8px 12px 10px; }
+  .popup-stats { gap: 6px; padding-bottom: 8px; margin-bottom: 8px; }
+  .popup-desc {
+    font-size: 0.72rem;
+    line-height: 1.35;
+    max-height: 4.05em;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+  .popup-link { padding: 8px 10px; min-height: 36px; }
+  .links-label { margin-bottom: 5px; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
@@ -414,22 +484,22 @@ header .subtitle {
     <button class="search-clear" id="searchClear" type="button" aria-label="Clear search">&#10005;</button>
   </div>
   <div class="header-count" id="headerCount"></div>
+  <button class="ghost-btn" id="sidebarToggle" type="button" aria-expanded="false" aria-controls="sidebar">&#9776; List</button>
 </header>
 
 <div class="controls">
-  <button class="ghost-btn" id="sidebarToggle" type="button" aria-expanded="false" aria-controls="sidebar">&#9776; List</button>
   <span class="controls-label">Show</span>
   <div class="toggle-group">
-    <button class="toggle-btn" id="btnResorts" type="button" aria-pressed="true">
+    <button class="toggle-btn" id="btnResorts" type="button" data-filter="resorts" aria-pressed="true">
       <span class="dot" style="background:var(--glacier)"></span> Ski Resorts
     </button>
-    <button class="toggle-btn" id="btnVillages" type="button" aria-pressed="true">
+    <button class="toggle-btn" id="btnVillages" type="button" data-filter="villages" aria-pressed="true">
       <span class="dot" style="background:var(--pine)"></span> Villages
     </button>
   </div>
   <div class="sep"></div>
   <span class="controls-label">Country</span>
-  <div class="toggle-group" id="countryGroup">
+  <div class="toggle-group" id="countryGroup" data-country-group>
     <button class="country-btn" type="button" data-country="all" aria-pressed="true">All</button>
     <button class="country-btn" type="button" data-country="France" aria-pressed="false">&#127467;&#127479; France</button>
     <button class="country-btn" type="button" data-country="Italy" aria-pressed="false">&#127470;&#127481; Italy</button>
@@ -437,8 +507,8 @@ header .subtitle {
   <div class="spacer"></div>
   <div class="map-style-group" id="styleGroup">
     <span class="controls-label">Map</span>
-    <button class="style-btn" type="button" data-style="street" aria-pressed="true">Street</button>
-    <button class="style-btn" type="button" data-style="terrain" aria-pressed="false">Terrain</button>
+    <button class="style-btn" type="button" data-style="street" aria-pressed="false">Street</button>
+    <button class="style-btn" type="button" data-style="terrain" aria-pressed="true">Terrain</button>
     <button class="style-btn" type="button" data-style="satellite" aria-pressed="false">Satellite</button>
   </div>
 </div>
@@ -449,9 +519,29 @@ header .subtitle {
       <h2>Locations</h2>
       <span class="hint">Click to zoom</span>
     </div>
+    <div class="drawer-filters">
+      <div class="toggle-group">
+        <button class="toggle-btn" type="button" data-filter="resorts" aria-pressed="true">
+          <span class="dot" style="background:var(--glacier)"></span> Ski Resorts
+        </button>
+        <button class="toggle-btn" type="button" data-filter="villages" aria-pressed="true">
+          <span class="dot" style="background:var(--pine)"></span> Villages
+        </button>
+      </div>
+      <div class="toggle-group" data-country-group>
+        <button class="country-btn" type="button" data-country="all" aria-pressed="true">All</button>
+        <button class="country-btn" type="button" data-country="France" aria-pressed="false">&#127467;&#127479; France</button>
+        <button class="country-btn" type="button" data-country="Italy" aria-pressed="false">&#127470;&#127481; Italy</button>
+      </div>
+    </div>
     <div id="resultList"></div>
   </aside>
   <div id="map" role="application" aria-label="Map of Alpine ski resorts and villages"></div>
+  <div class="map-basemap" id="styleGroupMobile" role="group" aria-label="Map style">
+    <button class="style-btn" type="button" data-style="street" aria-pressed="false">Street</button>
+    <button class="style-btn" type="button" data-style="terrain" aria-pressed="true">Terrain</button>
+    <button class="style-btn" type="button" data-style="satellite" aria-pressed="false">Satellite</button>
+  </div>
   <div class="map-overlay">
     <span class="count-text" id="visibleCount" aria-live="polite"></span>
     <button class="ghost-btn" id="resetView" type="button">Reset view</button>
@@ -473,6 +563,8 @@ const DATA = {
       "lat": 45.8539,
       "lng": 7.9362,
       "country": "Italy",
+      "buyEurM2": 3800,
+      "rentEurM2Month": 14,
       "pistes": 180,
       "altMin": 1212,
       "altMax": 3275,
@@ -489,6 +581,8 @@ const DATA = {
       "lat": 45.0892,
       "lng": 6.0695,
       "country": "France",
+      "buyEurM2": 7300,
+      "rentEurM2Month": 13.7,
       "pistes": 250,
       "altMin": 1860,
       "altMax": 3330,
@@ -505,6 +599,8 @@ const DATA = {
       "lat": 44.225,
       "lng": 6.9308,
       "country": "France",
+      "buyEurM2": 5000,
+      "rentEurM2Month": 14.7,
       "pistes": 135,
       "altMin": 1600,
       "altMax": 2450,
@@ -525,6 +621,8 @@ const DATA = {
       "lat": 45.0794,
       "lng": 6.7012,
       "country": "Italy",
+      "buyEurM2": 3250,
+      "rentEurM2Month": 17.1,
       "pistes": 100,
       "altMin": 1312,
       "altMax": 2750,
@@ -541,6 +639,8 @@ const DATA = {
       "lat": 46.467,
       "lng": 10.367,
       "country": "Italy",
+      "buyEurM2": 5500,
+      "rentEurM2Month": 28.7,
       "pistes": 50,
       "altMin": 1225,
       "altMax": 3012,
@@ -561,6 +661,8 @@ const DATA = {
       "lat": 45.9344,
       "lng": 7.631,
       "country": "Italy",
+      "buyEurM2": 7150,
+      "rentEurM2Month": 16.1,
       "pistes": 350,
       "altMin": 2050,
       "altMax": 3899,
@@ -577,6 +679,8 @@ const DATA = {
       "lat": 46.4769,
       "lng": 11.7703,
       "country": "Italy",
+      "buyEurM2": 6750,
+      "rentEurM2Month": 19.6,
       "pistes": 110,
       "altMin": 1320,
       "altMax": 2485,
@@ -593,6 +697,8 @@ const DATA = {
       "lat": 45.9226,
       "lng": 6.8753,
       "country": "France",
+      "buyEurM2": 9750,
+      "rentEurM2Month": 16.7,
       "pistes": 170,
       "altMin": 1035,
       "altMax": 3842,
@@ -609,6 +715,8 @@ const DATA = {
       "lat": 45.1077,
       "lng": 5.8766,
       "country": "France",
+      "buyEurM2": 2700,
+      "rentEurM2Month": 13.7,
       "pistes": 90,
       "altMin": 1650,
       "altMax": 2250,
@@ -625,6 +733,8 @@ const DATA = {
       "lat": 46.2675,
       "lng": 6.8417,
       "country": "France",
+      "buyEurM2": 5500,
+      "rentEurM2Month": 17,
       "pistes": 130,
       "altMin": 1100,
       "altMax": 2200,
@@ -645,6 +755,8 @@ const DATA = {
       "lat": 46.5403,
       "lng": 12.1361,
       "country": "Italy",
+      "buyEurM2": 13200,
+      "rentEurM2Month": 28,
       "pistes": 120,
       "altMin": 1217,
       "altMax": 2828,
@@ -665,6 +777,8 @@ const DATA = {
       "lat": 45.4153,
       "lng": 6.6344,
       "country": "France",
+      "buyEurM2": 12200,
+      "rentEurM2Month": 15.4,
       "pistes": 150,
       "altMin": 1100,
       "altMax": 2738,
@@ -689,6 +803,8 @@ const DATA = {
       "lat": 45.7855,
       "lng": 6.9708,
       "country": "Italy",
+      "buyEurM2": 8350,
+      "rentEurM2Month": 29.8,
       "pistes": 100,
       "altMin": 1224,
       "altMax": 2755,
@@ -705,6 +821,8 @@ const DATA = {
       "lat": 46.0042,
       "lng": 6.6958,
       "country": "France",
+      "buyEurM2": 4800,
+      "rentEurM2Month": 16,
       "pistes": 265,
       "altMin": 1600,
       "altMax": 2500,
@@ -725,6 +843,8 @@ const DATA = {
       "lat": 44.1867,
       "lng": 7.1583,
       "country": "France",
+      "buyEurM2": 4100,
+      "rentEurM2Month": 15.6,
       "pistes": 120,
       "altMin": 1800,
       "altMax": 2610,
@@ -745,6 +865,8 @@ const DATA = {
       "lat": 45.905,
       "lng": 6.4239,
       "country": "France",
+      "buyEurM2": 8950,
+      "rentEurM2Month": 17,
       "pistes": 125,
       "altMin": 1100,
       "altMax": 2600,
@@ -761,6 +883,8 @@ const DATA = {
       "lat": 45.0443,
       "lng": 6.3029,
       "country": "France",
+      "buyEurM2": 3250,
+      "rentEurM2Month": 13.5,
       "pistes": 0,
       "altMin": 1400,
       "altMax": 3600,
@@ -777,6 +901,8 @@ const DATA = {
       "lat": 45.5059,
       "lng": 6.6744,
       "country": "France",
+      "buyEurM2": 5150,
+      "rentEurM2Month": 16.3,
       "pistes": 225,
       "altMin": 1250,
       "altMax": 3250,
@@ -793,6 +919,8 @@ const DATA = {
       "lat": 45.6273,
       "lng": 6.8495,
       "country": "France",
+      "buyEurM2": 6400,
+      "rentEurM2Month": 16.1,
       "pistes": 152,
       "altMin": 1850,
       "altMax": 2642,
@@ -809,6 +937,8 @@ const DATA = {
       "lat": 45.7118,
       "lng": 6.949,
       "country": "Italy",
+      "buyEurM2": 5550,
+      "rentEurM2Month": 24.5,
       "pistes": 152,
       "altMin": 1450,
       "altMax": 2642,
@@ -825,6 +955,8 @@ const DATA = {
       "lat": 45.9425,
       "lng": 6.4258,
       "country": "France",
+      "buyEurM2": 6350,
+      "rentEurM2Month": 17.4,
       "pistes": 90,
       "altMin": 1000,
       "altMax": 2100,
@@ -841,6 +973,8 @@ const DATA = {
       "lat": 45.5717,
       "lng": 6.8078,
       "country": "France",
+      "buyEurM2": 5700,
+      "rentEurM2Month": 16.3,
       "pistes": 200,
       "altMin": 1200,
       "altMax": 3226,
@@ -857,6 +991,8 @@ const DATA = {
       "lat": 45.0176,
       "lng": 6.1249,
       "country": "France",
+      "buyEurM2": 5300,
+      "rentEurM2Month": 13.7,
       "pistes": 220,
       "altMin": 1300,
       "altMax": 3600,
@@ -877,6 +1013,8 @@ const DATA = {
       "lat": 45.2557,
       "lng": 5.9931,
       "country": "France",
+      "buyEurM2": 3050,
+      "rentEurM2Month": 13.9,
       "pistes": 70,
       "altMin": 1350,
       "altMax": 2400,
@@ -893,6 +1031,8 @@ const DATA = {
       "lat": 44.2015,
       "lng": 7.5773,
       "country": "Italy",
+      "buyEurM2": 3050,
+      "rentEurM2Month": 22.6,
       "pistes": 80,
       "altMin": 1050,
       "altMax": 2100,
@@ -909,6 +1049,8 @@ const DATA = {
       "lat": 46.5386,
       "lng": 10.1357,
       "country": "Italy",
+      "buyEurM2": 6900,
+      "rentEurM2Month": 24.8,
       "pistes": 115,
       "altMin": 1816,
       "altMax": 2798,
@@ -933,6 +1075,8 @@ const DATA = {
       "lat": 45.8498,
       "lng": 6.615,
       "country": "France",
+      "buyEurM2": 11150,
+      "rentEurM2Month": 16.2,
       "pistes": 450,
       "altMin": 1050,
       "altMax": 2350,
@@ -949,6 +1093,8 @@ const DATA = {
       "lat": 45.401,
       "lng": 6.5655,
       "country": "France",
+      "buyEurM2": 10800,
+      "rentEurM2Month": 15,
       "pistes": 150,
       "altMin": 1450,
       "altMax": 2952,
@@ -969,6 +1115,8 @@ const DATA = {
       "lat": 44.9344,
       "lng": 6.7299,
       "country": "France",
+      "buyEurM2": 4350,
+      "rentEurM2Month": 13.4,
       "pistes": 400,
       "altMin": 1860,
       "altMax": 2700,
@@ -985,6 +1133,8 @@ const DATA = {
       "lat": 46.1789,
       "lng": 6.7086,
       "country": "France",
+      "buyEurM2": 7400,
+      "rentEurM2Month": 16.6,
       "pistes": 600,
       "altMin": 1000,
       "altMax": 2466,
@@ -1005,6 +1155,8 @@ const DATA = {
       "lat": 45.6873,
       "lng": 7.3108,
       "country": "Italy",
+      "buyEurM2": 2500,
+      "rentEurM2Month": 14.9,
       "pistes": 70,
       "altMin": 1800,
       "altMax": 2700,
@@ -1021,6 +1173,8 @@ const DATA = {
       "lat": 44.2534,
       "lng": 7.7798,
       "country": "Italy",
+      "buyEurM2": 2450,
+      "rentEurM2Month": null,
       "pistes": 130,
       "altMin": 1500,
       "altMax": 2000,
@@ -1037,6 +1191,8 @@ const DATA = {
       "lat": 44.8188,
       "lng": 6.4871,
       "country": "France",
+      "buyEurM2": 2450,
+      "rentEurM2Month": 13.1,
       "pistes": 75,
       "altMin": 1400,
       "altMax": 2750,
@@ -1053,6 +1209,8 @@ const DATA = {
       "lat": 45.5761,
       "lng": 6.8938,
       "country": "France",
+      "buyEurM2": 5450,
+      "rentEurM2Month": 16.1,
       "pistes": 25,
       "altMin": 1550,
       "altMax": 2620,
@@ -1069,6 +1227,8 @@ const DATA = {
       "lat": 46.0847,
       "lng": 6.7281,
       "country": "France",
+      "buyEurM2": 5200,
+      "rentEurM2Month": 16,
       "pistes": 265,
       "altMin": 720,
       "altMax": 2500,
@@ -1089,6 +1249,8 @@ const DATA = {
       "lat": 44.9462,
       "lng": 6.5593,
       "country": "France",
+      "buyEurM2": 4600,
+      "rentEurM2Month": 13.4,
       "pistes": 250,
       "altMin": 1350,
       "altMax": 2800,
@@ -1105,6 +1267,8 @@ const DATA = {
       "lat": 44.9544,
       "lng": 6.8747,
       "country": "Italy",
+      "buyEurM2": 3650,
+      "rentEurM2Month": 24.2,
       "pistes": 400,
       "altMin": 1350,
       "altMax": 2823,
@@ -1121,6 +1285,8 @@ const DATA = {
       "lat": 45.4683,
       "lng": 6.9056,
       "country": "France",
+      "buyEurM2": 10100,
+      "rentEurM2Month": 16,
       "pistes": 300,
       "altMin": 1550,
       "altMax": 3456,
@@ -1141,6 +1307,8 @@ const DATA = {
       "lat": 45.4506,
       "lng": 6.9781,
       "country": "France",
+      "buyEurM2": 14400,
+      "rentEurM2Month": 15.8,
       "pistes": 300,
       "altMin": 1550,
       "altMax": 3456,
@@ -1161,6 +1329,8 @@ const DATA = {
       "lat": 46.5752,
       "lng": 11.6721,
       "country": "Italy",
+      "buyEurM2": 8750,
+      "rentEurM2Month": 30,
       "pistes": 181,
       "altMin": 1236,
       "altMax": 2518,
@@ -1181,6 +1351,8 @@ const DATA = {
       "lat": 45.2981,
       "lng": 6.58,
       "country": "France",
+      "buyEurM2": 7950,
+      "rentEurM2Month": 14.9,
       "pistes": 150,
       "altMin": 1800,
       "altMax": 3230,
@@ -1201,6 +1373,8 @@ const DATA = {
       "lat": 44.0953,
       "lng": 6.9289,
       "country": "France",
+      "buyEurM2": 3900,
+      "rentEurM2Month": 14.5,
       "pistes": 90,
       "altMin": 1412,
       "altMax": 2020,
@@ -1221,6 +1395,8 @@ const DATA = {
       "lat": 45.0706,
       "lng": 5.5513,
       "country": "France",
+      "buyEurM2": 3900,
+      "rentEurM2Month": 13.8,
       "pistes": 125,
       "altMin": 1160,
       "altMax": 2050,
@@ -1239,6 +1415,8 @@ const DATA = {
       "lat": 45.8532,
       "lng": 7.9375,
       "country": "Italy",
+      "buyEurM2": 3800,
+      "rentEurM2Month": 14,
       "altitude": 1154,
       "nearResort": "Monterosa Ski",
       "buyRating": 5,
@@ -1259,6 +1437,8 @@ const DATA = {
       "lat": 45.3945,
       "lng": 6.0752,
       "country": "France",
+      "buyEurM2": 2300,
+      "rentEurM2Month": 12.9,
       "altitude": 475,
       "nearResort": "Le Collet d'Allevard",
       "buyRating": 3,
@@ -1279,6 +1459,8 @@ const DATA = {
       "lat": 45.7365,
       "lng": 7.3152,
       "country": "Italy",
+      "buyEurM2": 2250,
+      "rentEurM2Month": 11.8,
       "altitude": 583,
       "nearResort": "Pila",
       "buyRating": 4,
@@ -1299,6 +1481,8 @@ const DATA = {
       "lat": 45.9836,
       "lng": 6.9269,
       "country": "France",
+      "buyEurM2": 9050,
+      "rentEurM2Month": 19,
       "altitude": 1250,
       "nearResort": "Chamonix",
       "buyRating": 4,
@@ -1315,6 +1499,8 @@ const DATA = {
       "lat": 45.0525,
       "lng": 6.0295,
       "country": "France",
+      "buyEurM2": 3100,
+      "rentEurM2Month": 14.1,
       "altitude": 720,
       "nearResort": "Les 2 Alpes + Alpe d'Huez",
       "buyRating": 5,
@@ -1339,6 +1525,8 @@ const DATA = {
       "lat": 45.6175,
       "lng": 6.7694,
       "country": "France",
+      "buyEurM2": 4100,
+      "rentEurM2Month": 16.3,
       "altitude": 810,
       "nearResort": "Tignes / Val d'Isère + Les Arcs (Paradiski)",
       "buyRating": 5,
@@ -1363,6 +1551,8 @@ const DATA = {
       "lat": 44.9007,
       "lng": 6.6441,
       "country": "France",
+      "buyEurM2": 2450,
+      "rentEurM2Month": 13.2,
       "altitude": 1320,
       "nearResort": "Serre Chev + Montgenevre",
       "buyRating": 4,
@@ -1383,6 +1573,8 @@ const DATA = {
       "lat": 45.4533,
       "lng": 6.5675,
       "country": "France",
+      "buyEurM2": 4600,
+      "rentEurM2Month": 15.6,
       "altitude": 600,
       "nearResort": "Méribel (Les 3 Vallées)",
       "buyRating": 4,
@@ -1407,6 +1599,8 @@ const DATA = {
       "lat": 44.953,
       "lng": 6.7936,
       "country": "Italy",
+      "buyEurM2": 3150,
+      "rentEurM2Month": 17.1,
       "altitude": 1350,
       "nearResort": "Sestriere / Via Lattea",
       "buyRating": 5,
@@ -1431,6 +1625,8 @@ const DATA = {
       "lat": 46.5496,
       "lng": 11.874,
       "country": "Italy",
+      "buyEurM2": 7000,
+      "rentEurM2Month": 21,
       "altitude": 1568,
       "nearResort": "Alta Badia / Sella Ronda",
       "buyRating": 3,
@@ -1451,6 +1647,8 @@ const DATA = {
       "lat": 45.8157,
       "lng": 6.9608,
       "country": "Italy",
+      "buyEurM2": 8100,
+      "rentEurM2Month": 29.8,
       "altitude": 1306,
       "nearResort": "Courmayeur",
       "buyRating": 4,
@@ -1471,6 +1669,8 @@ const DATA = {
       "lat": 45.0812,
       "lng": 6.0578,
       "country": "France",
+      "buyEurM2": 7300,
+      "rentEurM2Month": 13.7,
       "altitude": 1450,
       "nearResort": "Alpe d'Huez",
       "buyRating": 5,
@@ -1491,6 +1691,8 @@ const DATA = {
       "lat": 44.9761,
       "lng": 6.5099,
       "country": "France",
+      "buyEurM2": 5350,
+      "rentEurM2Month": 13.3,
       "altitude": 1480,
       "nearResort": "Serre Chevalier",
       "buyRating": 5,
@@ -1511,6 +1713,8 @@ const DATA = {
       "lat": 45.89,
       "lng": 6.7981,
       "country": "France",
+      "buyEurM2": 7350,
+      "rentEurM2Month": 17.7,
       "altitude": 1000,
       "nearResort": "Chamonix",
       "buyRating": 5,
@@ -1531,6 +1735,8 @@ const DATA = {
       "lat": 46.3768,
       "lng": 11.6594,
       "country": "Italy",
+      "buyEurM2": 4650,
+      "rentEurM2Month": 19.9,
       "altitude": 1184,
       "nearResort": "Canazei + TreValli (Alpe Lusia / San Pellegrino)",
       "buyRating": 4,
@@ -1551,6 +1757,8 @@ const DATA = {
       "lat": 45.0362,
       "lng": 6.1319,
       "country": "France",
+      "buyEurM2": 5300,
+      "rentEurM2Month": 13.7,
       "altitude": 1300,
       "nearResort": "Les Deux Alpes",
       "buyRating": 4,
@@ -1571,6 +1779,8 @@ const DATA = {
       "lat": 45.5594,
       "lng": 6.7326,
       "country": "France",
+      "buyEurM2": 4400,
+      "rentEurM2Month": 16.3,
       "altitude": 1250,
       "nearResort": "La Plagne (Paradiski)",
       "buyRating": 4,
@@ -1591,6 +1801,8 @@ const DATA = {
       "lat": 46.1981,
       "lng": 6.695,
       "country": "France",
+      "buyEurM2": 6200,
+      "rentEurM2Month": 19.5,
       "altitude": 940,
       "nearResort": "Morzine-Avoriaz",
       "buyRating": 4,
@@ -1615,6 +1827,8 @@ const DATA = {
       "lat": 45.0312,
       "lng": 6.8321,
       "country": "Italy",
+      "buyEurM2": 1950,
+      "rentEurM2Month": 13.2,
       "altitude": 1083,
       "nearResort": "Bardonecchia + Sestriere",
       "buyRating": 4,
@@ -1635,6 +1849,8 @@ const DATA = {
       "lat": 45.546,
       "lng": 6.7559,
       "country": "France",
+      "buyEurM2": 6200,
+      "rentEurM2Month": 16,
       "altitude": 1320,
       "nearResort": "Les Arcs + La Plagne (Paradiski)",
       "buyRating": 4,
@@ -1659,6 +1875,8 @@ const DATA = {
       "lat": 46.2586,
       "lng": 10.5087,
       "country": "Italy",
+      "buyEurM2": 4650,
+      "rentEurM2Month": 19.6,
       "altitude": 1258,
       "nearResort": "Ponte di Legno-Tonale (Presena glacier)",
       "buyRating": 4,
@@ -1679,6 +1897,8 @@ const DATA = {
       "lat": 45.7638,
       "lng": 6.9871,
       "country": "Italy",
+      "buyEurM2": 5300,
+      "rentEurM2Month": 27.4,
       "altitude": 1000,
       "nearResort": "Courmayeur + La Thuile",
       "buyRating": 5,
@@ -1699,6 +1919,8 @@ const DATA = {
       "lat": 44.285,
       "lng": 6.8775,
       "country": "France",
+      "buyEurM2": 2700,
+      "rentEurM2Month": 19.9,
       "altitude": 1500,
       "nearResort": "Auron + Isola 2000",
       "buyRating": 2,
@@ -1719,6 +1941,8 @@ const DATA = {
       "lat": 44.2578,
       "lng": 6.9253,
       "country": "France",
+      "buyEurM2": 5000,
+      "rentEurM2Month": 14.7,
       "altitude": 1140,
       "nearResort": "Auron",
       "buyRating": 4,
@@ -1739,6 +1963,8 @@ const DATA = {
       "lat": 46.235,
       "lng": 6.6564,
       "country": "France",
+      "buyEurM2": 4100,
+      "rentEurM2Month": 18.8,
       "altitude": 950,
       "nearResort": "Morzine-Avoriaz",
       "buyRating": 4,
@@ -1763,6 +1989,8 @@ const DATA = {
       "lat": 45.3811,
       "lng": 6.5053,
       "country": "France",
+      "buyEurM2": 6700,
+      "rentEurM2Month": 14.9,
       "altitude": 1450,
       "nearResort": "Les Menuires + Val Thorens (Les 3 Vallées)",
       "buyRating": 4,
@@ -1787,6 +2015,8 @@ const DATA = {
       "lat": 45.591,
       "lng": 6.8827,
       "country": "France",
+      "buyEurM2": 4400,
+      "rentEurM2Month": 16.1,
       "altitude": 1050,
       "nearResort": "Saint-Foy Tarentaise",
       "buyRating": 5,
@@ -1807,6 +2037,8 @@ const DATA = {
       "lat": 46.0558,
       "lng": 6.7764,
       "country": "France",
+      "buyEurM2": 4500,
+      "rentEurM2Month": 17,
       "altitude": 760,
       "nearResort": "Samoëns / Grand Massif",
       "buyRating": 4,
@@ -1827,6 +2059,8 @@ const DATA = {
       "lat": 45.8831,
       "lng": 6.3258,
       "country": "France",
+      "buyEurM2": 4700,
+      "rentEurM2Month": 17.2,
       "altitude": 650,
       "nearResort": "La Clusaz + Le Grand-Bornand",
       "buyRating": 4,
@@ -1847,6 +2081,8 @@ const DATA = {
       "lat": 45.5077,
       "lng": 6.9206,
       "country": "France",
+      "buyEurM2": 7100,
+      "rentEurM2Month": 16,
       "altitude": 1550,
       "nearResort": "Tignes / Val d'Isère",
       "buyRating": 4,
@@ -1871,6 +2107,8 @@ const DATA = {
       "lat": 45.8695,
       "lng": 7.6225,
       "country": "Italy",
+      "buyEurM2": 4250,
+      "rentEurM2Month": 16.1,
       "altitude": 1524,
       "nearResort": "Breuil-Cervinia",
       "buyRating": 5,
@@ -1895,6 +2133,8 @@ const DATA = {
       "lat": 45.003,
       "lng": 6.12,
       "country": "France",
+      "buyEurM2": 5300,
+      "rentEurM2Month": 13.7,
       "altitude": 960,
       "nearResort": "Les Deux Alpes",
       "buyRating": 5,
@@ -1919,6 +2159,8 @@ const DATA = {
       "lat": 45.0941,
       "lng": 6.0313,
       "country": "France",
+      "buyEurM2": 3850,
+      "rentEurM2Month": 14.3,
       "altitude": 1500,
       "nearResort": "Alpe d'Huez",
       "buyRating": 4,
@@ -1958,6 +2200,24 @@ items.forEach(function (it) {
   it.haystack = fold([it.name, it.country, it.desc, it.nearResort || ''].join(' '));
 });
 
+function euroM2(n) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString('fr-FR');
+}
+function priceStats(it) {
+  const buy = '<div class="stat"><span class="stat-val price">&euro;' + euroM2(it.buyEurM2) + '</span><span class="stat-label">Buy / m²</span></div>';
+  const rent = '<div class="stat"><span class="stat-val price">' +
+    (it.rentEurM2Month == null ? '—' : '&euro;' + euroM2(it.rentEurM2Month)) +
+    '</span><span class="stat-label">Rent / m²/mo</span></div>';
+  return buy + rent;
+}
+function priceMeta(it) {
+  const bits = [];
+  if (it.buyEurM2 != null) bits.push('buy €' + euroM2(it.buyEurM2) + '/m²');
+  if (it.rentEurM2Month != null) bits.push('rent €' + euroM2(it.rentEurM2Month) + '/m²');
+  return bits.length ? ' · ' + bits.join(' · ') : '';
+}
+
 function popupHTML(it) {
   if (it.kind === 'resort') {
     const piste = it.pistes > 0
@@ -1968,19 +2228,17 @@ function popupHTML(it) {
         '<div class="popup-name">' + esc(it.name) + '</div>' +
         '<div class="popup-country">' + flagFor(it.country) + ' ' + esc(it.country) + '</div>' +
       '</div><div class="popup-body"><div class="popup-stats">' + piste +
-        '<div class="stat"><span class="stat-val">' + it.altMax + ' m</span><span class="stat-label">Max alt.</span></div>' +
-        '<div class="stat"><span class="stat-val">' + (it.altMax - it.altMin) + ' m</span><span class="stat-label">Vertical</span></div>' +
+        priceStats(it) +
       '</div><div class="popup-desc">' + esc(it.desc) + '</div>' +
       '<div class="popup-links">' + linksHTML(it.links, '', '🔗') + '</div></div>';
   }
   return '<div class="popup-header village">' +
       '<div class="popup-type">🏡 Investment Village</div>' +
       '<div class="popup-name">' + esc(it.name) + '</div>' +
-      '<div class="popup-country">' + flagFor(it.country) + ' ' + esc(it.country) + '</div>' +
+      '<div class="popup-country">' + flagFor(it.country) + ' ' + esc(it.country) + ' · ' + esc(it.nearResort) + '</div>' +
     '</div><div class="popup-body"><div class="popup-stats">' +
       '<div class="stat"><span class="stat-val">' + it.altitude + ' m</span><span class="stat-label">Altitude</span></div>' +
-      '<div class="stat"><span class="stat-val rating-stars">' + starsHTML(it.buyRating) + '</span><span class="stat-label">Buy rating</span></div>' +
-      '<div class="stat"><span class="stat-val" style="font-size:0.72rem">' + esc(it.nearResort) + '</span><span class="stat-label">Near resort</span></div>' +
+      priceStats(it) +
     '</div><div class="popup-desc">' + esc(it.desc) + '</div>' +
     '<div class="links-label">🏠 Property listings</div>' +
     '<div class="popup-links">' + linksHTML(it.propertyLinks, 'property', '🏠') + '</div></div>';
@@ -2014,9 +2272,71 @@ const tiles = {
     attribution: '&copy; Esri World Imagery', maxZoom: 19
   })
 };
-let currentTile = 'street';
+let currentTile = 'terrain';
+let suppressMapClickUntil = 0;
+const isTouchUI = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
-const map = L.map('map', { center: [45.4, 7.4], zoom: 7, layers: [tiles.street], zoomControl: true });
+const map = L.map('map', {
+  center: [45.4, 7.4],
+  zoom: 7,
+  layers: [tiles.terrain],
+  zoomControl: true,
+  closePopupOnClick: false,
+  doubleClickZoom: !isTouchUI
+});
+
+function popupOptions() {
+  const mobile = window.matchMedia('(max-width: 900px)').matches;
+  return {
+    maxWidth: mobile ? 280 : 320,
+    autoPan: true,
+    keepInView: true,
+    autoPanPaddingTopLeft: L.point(18, 18),
+    autoPanPaddingBottomRight: L.point(18, mobile ? 72 : 40),
+    closeButton: true,
+    className: ''
+  };
+}
+
+function keepPopupOnScreen(popup) {
+  const el = popup && popup.getElement();
+  if (!el) return;
+  const popupRect = el.getBoundingClientRect();
+  const mapRect = map.getContainer().getBoundingClientRect();
+  const headerBottom = document.querySelector('header').getBoundingClientRect().bottom;
+  const overlay = document.querySelector('.map-overlay');
+  const overlayTop = overlay ? overlay.getBoundingClientRect().top : window.innerHeight;
+  const vv = window.visualViewport;
+  const vh = vv ? vv.height : window.innerHeight;
+  const pad = 10;
+  const visTop = Math.max(mapRect.top, headerBottom) + pad;
+  const visBottom = Math.min(mapRect.bottom, overlayTop, vh) - pad;
+  const visLeft = mapRect.left + pad;
+  const visRight = mapRect.right - pad;
+  let top = popupRect.top, bottom = popupRect.bottom, left = popupRect.left, right = popupRect.right;
+  const latlng = popup.getLatLng && popup.getLatLng();
+  if (latlng) {
+    const pin = map.latLngToContainerPoint(latlng);
+    const pinX = mapRect.left + pin.x;
+    const pinY = mapRect.top + pin.y;
+    bottom = Math.max(bottom, pinY + 18);
+    left = Math.min(left, pinX - 18);
+    right = Math.max(right, pinX + 18);
+  }
+  const boxMidX = (left + right) / 2;
+  const boxMidY = (top + bottom) / 2;
+  let dx = boxMidX - (visLeft + visRight) / 2;
+  let dy = boxMidY - (visTop + visBottom) / 2;
+  const nextLeft = left - dx, nextRight = right - dx, nextTop = top - dy, nextBottom = bottom - dy;
+  if (nextLeft < visLeft) dx -= visLeft - nextLeft;
+  if (nextRight > visRight) dx += nextRight - visRight;
+  if (nextTop < visTop) dy -= visTop - nextTop;
+  if (nextBottom > visBottom) dy += nextBottom - visBottom;
+  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+    suppressMapClickUntil = Date.now() + 500;
+    map.panBy([dx, dy], { animate: true, duration: 0.28 });
+  }
+}
 
 // markercluster is a CDN dependency; degrade to a plain layer group if it fails to load
 const clustered = typeof L.markerClusterGroup === 'function';
@@ -2025,11 +2345,33 @@ const markerLayer = clustered
   : L.layerGroup();
 markerLayer.addTo(map);
 
+function armClickShield() {
+  suppressMapClickUntil = Date.now() + 500;
+}
+function clickShield(e) {
+  if (Date.now() >= suppressMapClickUntil) return;
+  if (e.target && e.target.closest && e.target.closest('.leaflet-popup')) return;
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+  e.preventDefault();
+}
+map.getContainer().addEventListener('click', clickShield, true);
+map.getContainer().addEventListener('dblclick', clickShield, true);
+
 items.forEach(function (it) {
   it.marker = L.marker([it.lat, it.lng], { icon: iconFor(it), title: it.name, alt: it.name })
-    .bindPopup(popupHTML(it), { maxWidth: 320, autoPanPadding: [30, 30] });
-  it.marker.on('popupopen', function () { setActive(it); });
+    .bindPopup(popupHTML(it), popupOptions());
+  it.marker.on('click', armClickShield);
+  it.marker.on('popupopen', function (e) {
+    setActive(it);
+    armClickShield();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { keepPopupOnScreen(e.popup); });
+    });
+  });
 });
+
+map.on('popupopen', armClickShield);
 
 const allBounds = L.latLngBounds(items.map(function (it) { return [it.lat, it.lng]; }));
 map.fitBounds(allBounds, { padding: [40, 40] });
@@ -2052,8 +2394,8 @@ const headerCountEl = document.getElementById('headerCount');
 
 function resultHTML(it, idx) {
   const meta = it.kind === 'resort'
-    ? (it.pistes > 0 ? it.pistes + ' km pistes' : 'Off-piste') + ' · ' + it.altMin + '–' + it.altMax + ' m'
-    : it.altitude + ' m · <span class="stars">' + starsHTML(it.buyRating) + '</span> · ' + esc(it.nearResort);
+    ? (it.pistes > 0 ? it.pistes + ' km pistes' : 'Off-piste') + ' · ' + it.altMin + '–' + it.altMax + ' m' + priceMeta(it)
+    : it.altitude + ' m · ' + esc(it.nearResort) + priceMeta(it);
   return '<button class="result" type="button" data-idx="' + idx + '">' +
       '<span class="pin ' + it.kind + '" aria-hidden="true">' + (it.kind === 'resort' ? '⛷️' : '🏡') + '</span>' +
       '<span class="body"><span class="name">' + esc(it.name) +
@@ -2116,18 +2458,30 @@ function setActive(it) {
 // guaranteed to be a real marker on the map and openPopup() always works.
 const UNCLUSTERED_ZOOM = 12;
 
+let focusToken = 0;
 function focusItem(it) {
-  const finish = function () { setActive(it); it.marker.openPopup(); };
-  const target = L.latLng(it.lat, it.lng);
-  const zoom = Math.max(map.getZoom(), UNCLUSTERED_ZOOM);
-  // flyTo fires no moveend when nothing moves, so handle the already-there case directly
-  if (map.getZoom() === zoom && map.getCenter().distanceTo(target) < 1) {
-    finish();
-  } else {
-    map.once('moveend', finish);
-    map.flyTo(target, zoom, { duration: 0.6 });
-  }
+  const token = ++focusToken;
+  const finish = function () {
+    if (token !== focusToken) return;
+    setActive(it);
+    it.marker.openPopup();
+  };
+  const run = function () {
+    const target = L.latLng(it.lat, it.lng);
+    const zoom = Math.max(map.getZoom(), UNCLUSTERED_ZOOM);
+    // flyTo fires no moveend when nothing moves, so handle the already-there case directly
+    if (map.getZoom() === zoom && map.getCenter().distanceTo(target) < 1) {
+      finish();
+    } else {
+      map.once('moveend', finish);
+      map.flyTo(target, zoom, { duration: 0.55 });
+    }
+  };
   if (window.matchMedia('(max-width: 900px)').matches) closeSidebar();
+  requestAnimationFrame(function () {
+    map.invalidateSize({ animate: false });
+    run();
+  });
 }
 
 /* ---------- events ---------- */
@@ -2156,39 +2510,49 @@ clearEl.addEventListener('click', function () {
   searchEl.focus();
 });
 
-function bindToggle(id, key) {
-  const el = document.getElementById(id);
-  el.addEventListener('click', function () {
-    state[key] = !state[key];
-    el.setAttribute('aria-pressed', String(state[key]));
-    render();
+function syncTypeButtons() {
+  document.querySelectorAll('[data-filter]').forEach(function (el) {
+    el.setAttribute('aria-pressed', String(!!state[el.dataset.filter]));
   });
 }
-bindToggle('btnResorts', 'resorts');
-bindToggle('btnVillages', 'villages');
-
-document.getElementById('countryGroup').addEventListener('click', function (e) {
-  const btn = e.target.closest('.country-btn');
+document.addEventListener('click', function (e) {
+  const btn = e.target.closest('.toggle-btn[data-filter]');
   if (!btn) return;
-  state.country = btn.dataset.country;
-  this.querySelectorAll('.country-btn').forEach(function (b) {
-    b.setAttribute('aria-pressed', String(b === btn));
-  });
+  const key = btn.dataset.filter;
+  state[key] = !state[key];
+  syncTypeButtons();
   render();
 });
 
-document.getElementById('styleGroup').addEventListener('click', function (e) {
-  const btn = e.target.closest('.style-btn');
-  if (!btn) return;
-  const style = btn.dataset.style;
-  if (style === currentTile) return;
+function setCountry(country) {
+  state.country = country;
+  document.querySelectorAll('[data-country]').forEach(function (b) {
+    b.setAttribute('aria-pressed', String(b.dataset.country === country));
+  });
+  render();
+}
+document.querySelectorAll('[data-country-group]').forEach(function (group) {
+  group.addEventListener('click', function (e) {
+    const btn = e.target.closest('.country-btn');
+    if (btn) setCountry(btn.dataset.country);
+  });
+});
+
+function setTile(style) {
+  if (!tiles[style] || style === currentTile) return;
   map.removeLayer(tiles[currentTile]);
   map.addLayer(tiles[style]);
   currentTile = style;
-  this.querySelectorAll('.style-btn').forEach(function (b) {
-    b.setAttribute('aria-pressed', String(b === btn));
+  document.querySelectorAll('.style-btn[data-style]').forEach(function (b) {
+    b.setAttribute('aria-pressed', String(b.dataset.style === style));
   });
-});
+}
+function onStyleClick(e) {
+  const btn = e.target.closest('.style-btn');
+  if (btn) setTile(btn.dataset.style);
+}
+document.getElementById('styleGroup').addEventListener('click', onStyleClick);
+document.getElementById('styleGroupMobile').addEventListener('click', onStyleClick);
 
 document.getElementById('resetView').addEventListener('click', function () {
   map.flyToBounds(allBounds, { padding: [40, 40], duration: 0.6 });
@@ -2196,16 +2560,34 @@ document.getElementById('resetView').addEventListener('click', function () {
 
 const sidebarEl = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebarToggle');
+let relayoutTimer = 0;
+function relayoutMap() {
+  clearTimeout(relayoutTimer);
+  relayoutTimer = setTimeout(function () {
+    map.invalidateSize({ animate: false });
+  }, 40);
+}
 function closeSidebar() {
   sidebarEl.classList.remove('open');
   sidebarToggle.setAttribute('aria-expanded', 'false');
+  requestAnimationFrame(relayoutMap);
 }
 sidebarToggle.addEventListener('click', function () {
   const open = sidebarEl.classList.toggle('open');
   sidebarToggle.setAttribute('aria-expanded', String(open));
+  requestAnimationFrame(relayoutMap);
 });
 
+window.addEventListener('resize', relayoutMap);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', relayoutMap);
+if (window.ResizeObserver) {
+  new ResizeObserver(relayoutMap).observe(document.getElementById('map'));
+}
+
 render();
+map.whenReady(relayoutMap);
+setTimeout(relayoutMap, 0);
+setTimeout(relayoutMap, 250);
 </script>
 </body>
 </html>
