@@ -259,6 +259,96 @@ async function tapMarkerOrFallback(page, name) {
   return { ok: true, x: fallback.x, y: fallback.y, reason: tap.reason };
 }
 
+// The click shield swallows clicks on the map container for 500ms after a popup
+// opens. It must eat only the ghost click on the map surface -- a deliberate tap
+// on a DIFFERENT pin has to still work. Walk unclustered views until we find
+// scenarios where pin B is genuinely exposed (not under A's popup, not under a
+// control), tap A then B inside the shield window, and require B to win.
+const SHIELD_TAP_DELAY_MS = 200;
+
+function findFairPair() {
+  const boxes = [];
+  items.forEach(function (it) {
+    const icon = it.marker && it.marker._icon;
+    if (!icon) return;
+    const r = icon.getBoundingClientRect();
+    if (!(r.width > 0 && r.height > 0)) return;
+    const cx = r.x + r.width / 2;
+    const cy = r.y + r.height / 2;
+    // keep clear of the header, the count overlay and the attribution control
+    if (cx < 70 || cx > window.innerWidth - 70) return;
+    if (cy < 140 || cy > window.innerHeight - 260) return;
+    const el = document.elementFromPoint(cx, cy);
+    const hit = el && el.closest && el.closest('.leaflet-marker-icon');
+    if (hit && hit.getAttribute('title') === it.name) boxes.push({ name: it.name, cx: cx, cy: cy });
+  });
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const px = Math.hypot(boxes[i].cx - boxes[j].cx, boxes[i].cy - boxes[j].cy);
+      if (px >= 110) return { a: boxes[i], b: boxes[j], px: Math.round(px), boxCount: boxes.length };
+    }
+  }
+  return { boxCount: boxes.length, icons: items.filter(function (i) { return i.marker && i.marker._icon; }).length };
+}
+
+async function secondPinScenarios(page, wanted) {
+  const out = [];
+  const stats = { centres: 0, pairs: 0, exposed: 0 };
+  // earlier checks leave a search term and an open drawer behind; both would
+  // starve this scan (a filtered render puts almost no pins on the map)
+  await page.evaluate(() => {
+    const side = document.getElementById('sidebar');
+    if (side) side.classList.remove('open');
+    const se = document.getElementById('search');
+    if (se) { se.value = ''; se.dispatchEvent(new Event('input')); }
+    state.resorts = true;
+    state.villages = true;
+    state.country = 'all';
+    render();
+    map.closePopup();
+  });
+  await sleep(400);
+  const total = await page.evaluate(() => items.length);
+  for (let i = 0; i < total && out.length < wanted; i++) {
+    await page.evaluate((idx) => {
+      map.closePopup();
+      const it = items[idx];
+      map.setView([it.lat, it.lng], 12, { animate: false });
+      map.invalidateSize({ animate: false });
+    }, i);
+    await sleep(500);
+    stats.centres++;
+    const pair = await page.evaluate(findFairPair);
+    stats.lastBoxes = pair.boxCount;
+    stats.lastIcons = pair.icons;
+    if (!pair.a) continue;
+    stats.pairs++;
+    await realTap(page, pair.a.cx, pair.a.cy);
+    await page.waitForSelector('.leaflet-popup', { timeout: 3000 }).catch(() => null);
+    await sleep(SHIELD_TAP_DELAY_MS);
+    const bNow = await page.evaluate((n) => {
+      const it = items.find(function (i) { return i.name === n; });
+      const icon = it && it.marker && it.marker._icon;
+      if (!icon) return null;
+      const r = icon.getBoundingClientRect();
+      const cx = r.x + r.width / 2;
+      const cy = r.y + r.height / 2;
+      const el = document.elementFromPoint(cx, cy);
+      const hit = el && el.closest && el.closest('.leaflet-marker-icon');
+      return { cx: cx, cy: cy, exposed: !!(hit && hit.getAttribute('title') === n) };
+    }, pair.b.name);
+    // if B ended up under A's popup the user could not tap it either -- not a fair probe
+    if (!bNow || !bNow.exposed) continue;
+    stats.exposed++;
+    await realTap(page, bNow.cx, bNow.cy);
+    await sleep(900);
+    const got = await page.evaluate(() =>
+      ((document.querySelector('.leaflet-popup .popup-name') || {}).textContent || '').trim());
+    out.push({ a: pair.a.name, b: pair.b.name, got: got, ok: got === pair.b.name });
+  }
+  return { scenarios: out, stats: stats };
+}
+
 // After a pin opens a tall popup, Leaflet autoPan moves the map and a leftover
 // map click (the phone bug) lands on the tiles, not the pin. Tap empty map to
 // encode that: unfixed closePopupOnClick dismisses; the mobile fix must keep it.
@@ -597,6 +687,22 @@ async function openDrawer(page) {
             ' row=' + uniqueName + ' early=' + !!early
         );
       }
+    }
+
+    // ---- 9b. shield must not swallow a deliberate tap on a different pin ----
+    const second = await secondPinScenarios(page, 3);
+    if (!second.scenarios.length) {
+      check('tapping a second pin during the shield window opens its popup', false,
+        'inconclusive - no fair two-pin scenario (centres=' + second.stats.centres +
+          ' pairs=' + second.stats.pairs + ' exposed=' + second.stats.exposed +
+          ' lastBoxes=' + second.stats.lastBoxes + ' lastIcons=' + second.stats.lastIcons + ')');
+    } else {
+      check(
+        'tapping a second pin during the shield window opens its popup',
+        second.scenarios.every((sc) => sc.ok),
+        second.scenarios.map((sc) => sc.a + '->' + sc.b + '=' + (sc.ok ? 'ok' : '"' + sc.got + '"')).join('; ') +
+          ' (tap +' + SHIELD_TAP_DELAY_MS + 'ms)'
+      );
     }
 
     // ---- 10. desktop still shows filter controls ----

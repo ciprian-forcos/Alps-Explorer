@@ -403,7 +403,6 @@ header #sidebarToggle:hover {
   display: block; font-size: 0.6rem; text-transform: uppercase;
   letter-spacing: 0.09em; color: var(--mist); margin-top: 2px;
 }
-.rating-stars { color: var(--gold); letter-spacing: 1px; }
 .popup-desc { font-size: 0.8rem; color: var(--slate); margin-bottom: 12px; }
 .links-label {
   font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
@@ -2182,7 +2181,6 @@ function esc(s) {
   });
 }
 function flagFor(country) { return country === 'France' ? '🇫🇷' : '🇮🇹'; }
-function starsHTML(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
 // strip diacritics so "meribel" finds "Méribel" and "chatel" finds "Châtel"
 function fold(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
 function linksHTML(links, cls, icon) {
@@ -2350,7 +2348,12 @@ function armClickShield() {
 }
 function clickShield(e) {
   if (Date.now() >= suppressMapClickUntil) return;
-  if (e.target && e.target.closest && e.target.closest('.leaflet-popup')) return;
+  const t = e.target;
+  // The ghost click only does damage when it lands on the map surface. A click
+  // on the popup, on another pin, or on a control is either deliberate or
+  // harmless, so let it through -- otherwise tapping pin B right after pin A
+  // silently does nothing for half a second.
+  if (t && t.closest && t.closest('.leaflet-popup, .leaflet-marker-icon, .leaflet-control')) return;
   e.stopPropagation();
   e.stopImmediatePropagation();
   e.preventDefault();
