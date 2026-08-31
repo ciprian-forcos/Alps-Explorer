@@ -1,915 +1,2210 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alps Explorer — Ski Resorts &amp; Villages</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --snow:       #f5f3ee;
-      --parchment:  #e8e2d5;
-      --ink:        #1a1a2e;
-      --mist:       #6b7280;
-      --glacier:    #2563eb;
-      --peak:       #dc2626;
-      --pine:       #16a34a;
-      --gold:       #d97706;
-      --slate:      #475569;
-      --panel:      rgba(245,243,238,0.97);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--ink);
-      color: var(--ink);
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    header {
-      background: var(--ink);
-      color: var(--snow);
-      padding: 0 24px;
-      height: 56px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      z-index: 1000;
-    }
-    .header-left { display: flex; align-items: baseline; gap: 12px; }
-    header h1 {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.3rem;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-    }
-    header .subtitle {
-      font-size: 0.75rem;
-      color: rgba(255,255,255,0.45);
-      font-weight: 300;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    .controls {
-      background: var(--parchment);
-      border-bottom: 1px solid #d1c9bc;
-      padding: 10px 24px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex-shrink: 0;
-      flex-wrap: wrap;
-      z-index: 999;
-    }
-    .controls-label {
-      font-size: 0.7rem;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--mist);
-    }
-    .toggle-group { display: flex; gap: 8px; flex-wrap: wrap; }
-    .toggle-btn {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 12px;
-      border-radius: 20px;
-      border: 1.5px solid transparent;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.78rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.18s;
-      background: white;
-    }
-    .toggle-btn .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .toggle-btn.active   { color: white; }
-    .toggle-btn.inactive { background: #f0ece6; color: var(--mist); border-color: #ddd6c8; }
-    .btn-resorts.active  { background: var(--glacier); border-color: var(--glacier); }
-    .btn-villages.active { background: var(--pine);    border-color: var(--pine); }
-    .sep { width: 1px; height: 24px; background: #d1c9bc; margin: 0 4px; }
-    .country-btn {
-      padding: 5px 12px;
-      border-radius: 20px;
-      border: 1.5px solid #d1c9bc;
-      background: white;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.78rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.18s;
-      color: var(--slate);
-    }
-    .country-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
-    .map-style-group { margin-left: auto; display: flex; gap: 6px; }
-    .style-btn {
-      padding: 5px 12px;
-      border-radius: 20px;
-      border: 1.5px solid #d1c9bc;
-      background: white;
-      font-family: 'DM Sans', sans-serif;
-      font-size: 0.75rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.18s;
-      color: var(--slate);
-    }
-    .style-btn.active { background: var(--slate); color: white; border-color: var(--slate); }
-    #map { flex: 1; width: 100%; }
-    .leaflet-popup-content-wrapper {
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-      padding: 0;
-      overflow: hidden;
-      border: none;
-    }
-    .leaflet-popup-content { margin: 0; width: 300px !important; }
-    .popup-header { padding: 14px 16px 10px; border-bottom: 1px solid #eee; }
-    .popup-type {
-      font-size: 0.65rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      margin-bottom: 4px;
-    }
-    .popup-type.resort { color: var(--glacier); }
-    .popup-type.village { color: var(--pine); }
-    .popup-name {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--ink);
-      line-height: 1.25;
-    }
-    .popup-country { font-size: 0.72rem; color: var(--mist); margin-top: 2px; }
-    .popup-body { padding: 12px 16px; }
-    .popup-stats { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
-    .stat { display: flex; flex-direction: column; }
-    .stat-val { font-size: 0.95rem; font-weight: 600; color: var(--ink); }
-    .stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--mist); }
-    .popup-desc { font-size: 0.8rem; color: var(--slate); line-height: 1.5; margin-bottom: 12px; }
-    .popup-links { display: flex; flex-direction: column; gap: 6px; }
-    .popup-link {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      padding: 7px 10px;
-      border-radius: 8px;
-      background: var(--snow);
-      text-decoration: none;
-      font-size: 0.76rem;
-      font-weight: 500;
-      color: var(--ink);
-      transition: background 0.15s;
-      border: 1px solid #e5e0d8;
-    }
-    .popup-link:hover { background: #e8e2d5; }
-    .popup-link .link-icon { font-size: 0.9rem; }
-    .popup-link.property { color: var(--pine); }
-    .popup-link.property .link-icon { color: var(--pine); }
-    .rating-stars { font-size: 0.75rem; color: var(--gold); margin-top: 2px; }
-    .legend {
-      position: absolute;
-      bottom: 32px;
-      left: 16px;
-      background: var(--panel);
-      border-radius: 12px;
-      padding: 14px 16px;
-      z-index: 800;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-      border: 1px solid #ddd6c8;
-      min-width: 180px;
-    }
-    .legend h3 {
-      font-family: 'Playfair Display', serif;
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--ink);
-      margin-bottom: 10px;
-      letter-spacing: 0.02em;
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 9px;
-      margin-bottom: 7px;
-      font-size: 0.78rem;
-      color: var(--slate);
-    }
-    .legend-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      border: 2px solid white;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-    }
-    .legend-sep { border: none; border-top: 1px solid #e0d8cc; margin: 8px 0; }
-    .stats-bar {
-      position: absolute;
-      top: 8px;
-      right: 16px;
-      background: var(--panel);
-      border-radius: 10px;
-      padding: 8px 14px;
-      z-index: 800;
-      font-size: 0.72rem;
-      color: var(--mist);
-      box-shadow: 0 2px 12px rgba(0,0,0,0.1);
-      border: 1px solid #ddd6c8;
-    }
-    .stats-bar span { font-weight: 600; color: var(--ink); }
-    @media (max-width: 600px) {
-      .controls { padding: 8px 12px; gap: 8px; }
-      .map-style-group { margin-left: 0; }
-      .legend { bottom: 16px; left: 8px; }
-      .stats-bar { display: none; }
-      header { padding: 0 14px; }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Alps Explorer — Ski Resorts &amp; Investment Villages</title>
+<meta name="description" content="Interactive map of 43 ski resorts and 33 investment villages across the French and Italian Alps, with piste stats, altitudes and property links." />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --snow:      #f5f3ee;
+  --parchment: #e8e2d5;
+  --ink:       #1a1a2e;
+  --mist:      #6b7280;
+  --glacier:   #2563eb;
+  --peak:      #dc2626;
+  --pine:      #16a34a;
+  --gold:      #d97706;
+  --slate:     #475569;
+  --line:      #d8d0c2;
+  --panel:     rgba(245,243,238,0.97);
+  --shadow-sm: 0 1px 2px rgba(26,26,46,0.06), 0 2px 6px rgba(26,26,46,0.05);
+  --shadow-md: 0 4px 16px rgba(26,26,46,0.10), 0 1px 3px rgba(26,26,46,0.08);
+  --shadow-lg: 0 12px 40px rgba(26,26,46,0.18);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--ink);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--glacier); outline-offset: 2px; border-radius: 4px; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- header ---------- */
+header {
+  background: linear-gradient(180deg, #23233f 0%, var(--ink) 100%);
+  color: var(--snow);
+  padding: 0 20px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  z-index: 1200;
+}
+.header-left { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+header h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.32rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+header .subtitle {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.45);
+  font-weight: 300;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.header-count {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+}
+.header-count strong { color: var(--snow); font-weight: 500; }
+
+/* ---------- search ---------- */
+.search-wrap { position: relative; flex: 0 1 320px; }
+#search {
+  width: 100%;
+  height: 34px;
+  padding: 0 32px 0 34px;
+  border-radius: 17px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.07);
+  color: var(--snow);
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+#search::placeholder { color: rgba(255,255,255,0.4); }
+#search:focus {
+  background: rgba(255,255,255,0.13);
+  border-color: rgba(255,255,255,0.35);
+  outline: none;
+}
+.search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 0.8rem; opacity: 0.5; pointer-events: none;
+}
+.search-clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border: 0; border-radius: 50%;
+  background: rgba(255,255,255,0.15); color: var(--snow);
+  font-size: 0.75rem; line-height: 1; cursor: pointer; display: none;
+}
+.search-clear.visible { display: block; }
+.search-clear:hover { background: rgba(255,255,255,0.28); }
+
+/* ---------- controls ---------- */
+.controls {
+  background: var(--parchment);
+  border-bottom: 1px solid var(--line);
+  padding: 9px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  z-index: 1100;
+}
+.controls-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--mist);
+}
+.toggle-group { display: flex; gap: 6px; flex-wrap: wrap; }
+.sep { width: 1px; height: 20px; background: var(--line); }
+.spacer { flex: 1; }
+.toggle-btn, .country-btn, .style-btn, .ghost-btn {
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.65);
+  color: var(--slate);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+.toggle-btn:hover, .country-btn:hover, .style-btn:hover, .ghost-btn:hover {
+  background: #fff; border-color: #bdb3a2;
+}
+.toggle-btn[aria-pressed="true"], .country-btn[aria-pressed="true"], .style-btn[aria-pressed="true"] {
+  background: var(--ink); color: var(--snow); border-color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+.toggle-btn[aria-pressed="false"] { opacity: 0.55; }
+.toggle-btn .dot {
+  width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.85);
+}
+.style-btn { padding: 5px 10px; font-size: 0.74rem; }
+.map-style-group { display: flex; align-items: center; gap: 6px; }
+
+/* ---------- layout ---------- */
+.stage { flex: 1; display: flex; min-height: 0; position: relative; }
+#map { flex: 1; min-width: 0; background: #dfe6e4; }
+.leaflet-container { font-family: 'DM Sans', system-ui, sans-serif; }
+
+/* ---------- sidebar ---------- */
+#sidebar {
+  width: 336px;
+  flex-shrink: 0;
+  background: var(--snow);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+}
+.sidebar-head {
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.sidebar-head h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1rem;
+  font-weight: 700;
+}
+.sidebar-head .hint { font-size: 0.7rem; color: var(--mist); }
+#resultList { overflow-y: auto; flex: 1; padding: 6px 10px 16px; scrollbar-width: thin; }
+#resultList::-webkit-scrollbar { width: 8px; }
+#resultList::-webkit-scrollbar-thumb { background: #cfc7b8; border-radius: 4px; }
+.group-head {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--mist);
+  font-weight: 700;
+  padding: 14px 6px 6px;
+  position: sticky;
+  top: 0;
+  background: var(--snow);
+  z-index: 1;
+}
+.result {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.result:hover { background: #fff; border-color: var(--line); box-shadow: var(--shadow-sm); }
+.result.is-active { background: #fff; border-color: var(--glacier); box-shadow: var(--shadow-sm); }
+.result .pin {
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; line-height: 1; color: #fff; margin-top: 1px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+.result .pin.resort { background: var(--glacier); }
+.result .pin.village { background: var(--pine); }
+.result .body { min-width: 0; flex: 1; }
+.result .name {
+  font-size: 0.87rem; font-weight: 500; color: var(--ink);
+  display: flex; align-items: center; gap: 6px;
+}
+.result .name .flag { font-size: 0.75rem; }
+.result .meta {
+  font-size: 0.72rem; color: var(--mist); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.result .stars { color: var(--gold); letter-spacing: 0.5px; }
+.empty-state {
+  padding: 36px 18px; text-align: center; color: var(--mist); font-size: 0.85rem; line-height: 1.6;
+}
+.empty-state strong { display: block; color: var(--ink); font-size: 0.95rem; margin-bottom: 6px; }
+
+/* ---------- map furniture ---------- */
+.map-overlay {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 18px; z-index: 900;
+  display: flex; gap: 8px; align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 8px 7px 16px;
+  box-shadow: var(--shadow-md);
+  font-size: 0.78rem;
+  backdrop-filter: blur(6px);
+}
+.map-overlay .count-text { color: var(--slate); }
+.map-overlay .count-text strong { font-weight: 700; }
+.ghost-btn { padding: 5px 11px; font-size: 0.74rem; }
+.legend {
+  position: absolute; right: 12px; top: 12px; z-index: 900;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 13px;
+  box-shadow: var(--shadow-md);
+  font-size: 0.75rem;
+  backdrop-filter: blur(6px);
+}
+.legend h3 {
+  font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.13em;
+  color: var(--mist); margin-bottom: 8px; font-weight: 700;
+}
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; color: var(--slate); }
+.legend-dot { width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,0.9); }
+.legend-sep { border: 0; border-top: 1px solid var(--line); margin: 9px 0 8px; }
+.legend-note { font-size: 0.68rem; color: var(--mist); line-height: 1.5; }
+#sidebarToggle { display: none; }
+
+/* ---------- markers ---------- */
+.pin-wrap { position: relative; }
+.pin-main {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2.5px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; line-height: 1;
+  transition: transform 0.12s;
+}
+.pin-wrap:hover .pin-main { transform: scale(1.14); }
+.pin-main.resort  { background: var(--glacier); }
+.pin-main.village { background: var(--pine); width: 26px; height: 26px; font-size: 12px; }
+.pin-flag {
+  position: absolute; right: -3px; bottom: -3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; line-height: 1;
+}
+.leaflet-marker-icon.is-highlighted .pin-main {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 4px rgba(37,99,235,0.35), 0 2px 10px rgba(0,0,0,0.4);
+}
+.marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: rgba(26,26,46,0.18); }
+.marker-cluster-small div, .marker-cluster-medium div, .marker-cluster-large div {
+  background: var(--ink); color: var(--snow);
+  font-family: 'DM Sans', system-ui, sans-serif; font-weight: 500;
+}
+
+/* ---------- popups ---------- */
+.leaflet-popup-content-wrapper { border-radius: 14px; padding: 0; overflow: hidden; box-shadow: var(--shadow-lg); }
+.leaflet-popup-content { margin: 0; width: 320px !important; line-height: 1.5; }
+.leaflet-popup-tip { box-shadow: var(--shadow-md); }
+.popup-header { padding: 14px 16px 12px; color: #fff; }
+.popup-header.resort  { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); }
+.popup-header.village { background: linear-gradient(135deg, #16a34a 0%, #14532d 100%); }
+.popup-type {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.15em;
+  font-weight: 700; opacity: 0.85; margin-bottom: 5px;
+}
+.popup-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.16rem; font-weight: 700; line-height: 1.25;
+}
+.popup-country { font-size: 0.75rem; opacity: 0.8; margin-top: 3px; }
+.popup-body { padding: 13px 16px 15px; background: var(--snow); }
+.popup-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  padding-bottom: 12px; margin-bottom: 11px; border-bottom: 1px solid var(--line);
+}
+.stat { text-align: center; min-width: 0; }
+.stat-val {
+  display: block; font-weight: 700; font-size: 0.92rem; color: var(--ink);
+  overflow: hidden; text-overflow: ellipsis;
+}
+.stat-label {
+  display: block; font-size: 0.6rem; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--mist); margin-top: 2px;
+}
+.rating-stars { color: var(--gold); letter-spacing: 1px; }
+.popup-desc { font-size: 0.8rem; color: var(--slate); margin-bottom: 12px; }
+.links-label {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--pine); margin-bottom: 7px;
+}
+.popup-links { display: flex; flex-direction: column; gap: 5px; }
+.popup-link {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 0.78rem; text-decoration: none;
+  color: var(--glacier); background: rgba(37,99,235,0.07);
+  padding: 7px 10px; border-radius: 8px;
+  transition: background 0.13s, transform 0.13s;
+}
+.popup-link:hover { background: rgba(37,99,235,0.15); transform: translateX(2px); }
+.popup-link.property { color: var(--pine); background: rgba(22,163,74,0.08); }
+.popup-link.property:hover { background: rgba(22,163,74,0.16); }
+.link-icon { flex-shrink: 0; font-size: 0.72rem; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 900px) {
+  header { height: auto; padding: 10px 14px; flex-wrap: wrap; }
+  header .subtitle, .header-count { display: none; }
+  .search-wrap { flex: 1 1 100%; }
+  .controls { padding: 8px 14px; gap: 10px; }
+  .controls .sep, .controls .controls-label { display: none; }
+  #sidebarToggle { display: inline-flex; }
+  #sidebar {
+    position: absolute; inset: 0 auto 0 0;
+    width: min(88%, 336px);
+    transform: translateX(-101%);
+    transition: transform 0.22s ease;
+    box-shadow: var(--shadow-lg);
+  }
+  #sidebar.open { transform: translateX(0); }
+  .legend { display: none; }
+  .map-overlay { bottom: 12px; font-size: 0.74rem; padding: 6px 7px 6px 13px; }
+  .leaflet-popup-content { width: 250px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
 </head>
 <body>
 <header>
   <div class="header-left">
     <h1>&#x26F0;&#xFE0F; Alps Explorer</h1>
-    <span class="subtitle">French &amp; Italian Alps &middot; Ski Resorts &amp; Investment Villages</span>
+    <span class="subtitle">French &amp; Italian Alps &middot; Resorts &amp; Investment Villages</span>
   </div>
+  <div class="search-wrap">
+    <span class="search-icon" aria-hidden="true">&#128269;</span>
+    <label class="sr-only" for="search">Search resorts and villages</label>
+    <input id="search" type="search" autocomplete="off" spellcheck="false"
+           placeholder="Search a resort, village or area&hellip;" />
+    <button class="search-clear" id="searchClear" type="button" aria-label="Clear search">&#10005;</button>
+  </div>
+  <div class="header-count" id="headerCount"></div>
 </header>
+
 <div class="controls">
+  <button class="ghost-btn" id="sidebarToggle" type="button" aria-expanded="false" aria-controls="sidebar">&#9776; List</button>
   <span class="controls-label">Show</span>
   <div class="toggle-group">
-    <button class="toggle-btn btn-resorts active" onclick="toggleLayer('resorts', this)">
+    <button class="toggle-btn" id="btnResorts" type="button" aria-pressed="true">
       <span class="dot" style="background:var(--glacier)"></span> Ski Resorts
     </button>
-    <button class="toggle-btn btn-villages active" onclick="toggleLayer('villages', this)">
+    <button class="toggle-btn" id="btnVillages" type="button" aria-pressed="true">
       <span class="dot" style="background:var(--pine)"></span> Villages
     </button>
   </div>
   <div class="sep"></div>
   <span class="controls-label">Country</span>
-  <div class="toggle-group">
-    <button class="country-btn active" data-country="all" onclick="filterCountry('all', this)">All</button>
-    <button class="country-btn" data-country="France" onclick="filterCountry('France', this)">&#127467;&#127479; France</button>
-    <button class="country-btn" data-country="Italy" onclick="filterCountry('Italy', this)">&#127470;&#127481; Italy</button>
+  <div class="toggle-group" id="countryGroup">
+    <button class="country-btn" type="button" data-country="all" aria-pressed="true">All</button>
+    <button class="country-btn" type="button" data-country="France" aria-pressed="false">&#127467;&#127479; France</button>
+    <button class="country-btn" type="button" data-country="Italy" aria-pressed="false">&#127470;&#127481; Italy</button>
   </div>
-  <div class="map-style-group">
-    <span class="controls-label" style="margin-right:4px">Map</span>
-    <button class="style-btn active" onclick="switchTile('street', this)">Street</button>
-    <button class="style-btn" onclick="switchTile('terrain', this)">Terrain</button>
-    <button class="style-btn" onclick="switchTile('satellite', this)">Satellite</button>
+  <div class="spacer"></div>
+  <div class="map-style-group" id="styleGroup">
+    <span class="controls-label">Map</span>
+    <button class="style-btn" type="button" data-style="street" aria-pressed="true">Street</button>
+    <button class="style-btn" type="button" data-style="terrain" aria-pressed="false">Terrain</button>
+    <button class="style-btn" type="button" data-style="satellite" aria-pressed="false">Satellite</button>
   </div>
 </div>
-<div style="position:relative; flex:1; display:flex; flex-direction:column;">
-  <div id="map"></div>
-  <div class="stats-bar" id="statsBar">
-    Showing <span id="visibleCount">0</span> locations
+
+<div class="stage">
+  <aside id="sidebar" aria-label="Locations">
+    <div class="sidebar-head">
+      <h2>Locations</h2>
+      <span class="hint">Click to zoom</span>
+    </div>
+    <div id="resultList"></div>
+  </aside>
+  <div id="map" role="application" aria-label="Map of Alpine ski resorts and villages"></div>
+  <div class="map-overlay">
+    <span class="count-text" id="visibleCount" aria-live="polite"></span>
+    <button class="ghost-btn" id="resetView" type="button">Reset view</button>
   </div>
   <div class="legend">
     <h3>Legend</h3>
-    <div class="legend-item">
-      <div class="legend-dot" style="background:var(--glacier)"></div> Ski Resort
-    </div>
-    <div class="legend-item">
-      <div class="legend-dot" style="background:var(--pine)"></div> Village (buy here)
-    </div>
-    <hr class="legend-sep">
-    <div style="font-size:0.7rem; color:var(--mist); line-height:1.5;">
-      Click any marker<br>for details &amp; links
-    </div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--glacier)"></span> Ski resort</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--pine)"></span> Village (buy here)</div>
+    <hr class="legend-sep" />
+    <div class="legend-note">Flag badge shows the country.<br />Numbered circles group nearby pins &mdash; click to expand.</div>
   </div>
 </div>
+
 <script>
-const RESORTS = [
-  {
-    name: "Les Deux Alpes \u2b50",
-    lat: 45.0176, lng: 6.1249,
-    country: "France",
-    pistes: 220,
-    altMin: 1300, altMax: 3600,
-    desc: "Your reference resort \u2014 glacier to 3,600m, 2,300m vertical, world's fastest gondola, year-round skiing. Grande Galaxie pass links to Alpe d'Huez, Serre Chevalier, Puy-Saint-Vincent.",
-    links: [
-      { label: "Official site", url: "https://www.les2alpes.com" },
-      { label: "Ski area info", url: "https://www.skiresort.info/ski-resort/les-2-alpes/" }
-    ]
-  },
-  {
-    name: "La Grave",
-    lat: 45.0443, lng: 6.3029,
-    country: "France",
-    pistes: 0,
-    altMin: 1400, altMax: 3600,
-    desc: "Pure off-piste legend \u2014 no groomed runs, one cable car, unguided freeride. 15 min from Les 2 Alpes. Expert only.",
-    links: [
-      { label: "La Grave info", url: "https://www.la-grave.com" }
-    ]
-  },
-  {
-    name: "Alpe d'Huez",
-    lat: 45.0892, lng: 6.0695,
-    country: "France",
-    pistes: 250,
-    altMin: 1860, altMax: 3330,
-    desc: "300 days sun, 16km Sarenne black run (longest in Alps), links Oz/Vaujany/Auris. Tour de France iconic climb. Upcoming gondola from Bourg d'Oisans.",
-    links: [
-      { label: "Official site", url: "https://www.alpedhuez.com" }
-    ]
-  },
-  {
-    name: "Serre Chevalier",
-    lat: 44.9462, lng: 6.5593,
-    country: "France",
-    pistes: 250,
-    altMin: 1350, altMax: 2800,
-    desc: "4 linked villages, near Briancon & Italian border, 300 days sun. Larch forest skiing, thermal baths at Monetier. Most underrated mega-resort in France.",
-    links: [
-      { label: "Official site", url: "https://www.serre-chevalier.com" }
-    ]
-  },
-  {
-    name: "Montgenevre",
-    lat: 44.9344, lng: 6.7299,
-    country: "France",
-    pistes: 400,
-    altMin: 1860, altMax: 2700,
-    desc: "French-Italian border resort, gateway to Via Lattea 400km mega-domain. Cross into Italy for pasta by lunchtime.",
-    links: [
-      { label: "Official site", url: "https://montgenevre.com" }
-    ]
-  },
-  {
-    name: "Chamonix",
-    lat: 45.9226, lng: 6.8753,
-    country: "France",
-    pistes: 170,
-    altMin: 1035, altMax: 3842,
-    desc: "Mont Blanc base, world mountaineering capital. Vallee Blanche 22km longest off-piste run. Aiguille du Midi at 3,842m.",
-    links: [
-      { label: "Official site", url: "https://www.chamonix.com" }
-    ]
-  },
-  {
-    name: "Megeve",
-    lat: 45.8498, lng: 6.6150,
-    country: "France",
-    pistes: 450,
-    altMin: 1050, altMax: 2350,
-    desc: "Luxury, traditional village, Mont Blanc views. Evasion Mont-Blanc area 450km. Horse-drawn sleighs, Michelin restaurants, cobbled streets.",
-    links: [
-      { label: "Official site", url: "https://www.megeve.com" }
-    ]
-  },
-  {
-    name: "Puy-Saint-Vincent",
-    lat: 44.8188, lng: 6.4871,
-    country: "France",
-    pistes: 75,
-    altMin: 1400, altMax: 2750,
-    desc: "Ecrins massif, linked via Grande Galaxie pass with Les 2 Alpes. Great value, family friendly, quiet slopes.",
-    links: [
-      { label: "Tourist office", url: "https://www.puy-saint-vincent.com" }
-    ]
-  },
-  {
-    name: "Saint-Foy-Tarentaise",
-    lat: 45.5761, lng: 6.8938,
-    country: "France",
-    pistes: 25,
-    altMin: 1550, altMax: 2620,
-    desc: "Hidden gem, 6 lifts, legendary off-piste powder fields. No queues ever. Near Les Arcs and Val d'Isere for resort hopping.",
-    links: [
-      { label: "Official site", url: "https://www.saintefoy-ski.com" }
-    ]
-  },
-  {
-    name: "Chamrousse",
-    lat: 45.1077, lng: 5.8766,
-    country: "France",
-    pistes: 90,
-    altMin: 1650, altMax: 2250,
-    desc: "30km from Grenoble, perfect day-trip resort. Panoramic views, 1968 Winter Olympics host, excellent value.",
-    links: [
-      { label: "Official site", url: "https://www.chamrousse.com" }
-    ]
-  },
-  {
-    name: "Les Sept Laux",
-    lat: 45.2557, lng: 5.9931,
-    country: "France",
-    pistes: 70,
-    altMin: 1350, altMax: 2400,
-    desc: "Belledonne range, freeride destination, excellent value. 45 min from Grenoble & Chambery.",
-    links: [
-      { label: "Official site", url: "https://www.les7laux.com" }
-    ]
-  },
-  {
-    name: "Villard-de-Lans / Correcon",
-    lat: 45.0449, lng: 5.5599,
-    country: "France",
-    pistes: 60,
-    altMin: 1160, altMax: 2170,
-    desc: "Vercors plateau, Nordic + alpine, charming family village. 30km from Grenoble.",
-    links: [
-      { label: "Tourist info", url: "https://www.villardcorrencon.com" }
-    ]
-  },
-  {
-    name: "La Rosiere",
-    lat: 45.6273, lng: 6.8495,
-    country: "France",
-    pistes: 152,
-    altMin: 1850, altMax: 2642,
-    desc: "Espace San Bernardo \u2014 links to La Thuile Italy. One of few French Alps heli-skiing spots. Good snow guarantee.",
-    links: [
-      { label: "Official site", url: "https://www.larosiere.net" }
-    ]
-  },
-  {
-    name: "Sestriere / Via Lattea",
-    lat: 44.9544, lng: 6.8747,
-    country: "Italy",
-    pistes: 400,
-    altMin: 1350, altMax: 2823,
-    desc: "2006 Turin Olympics hub, highest Via Lattea village at 2,035m. 400km Milky Way includes Sauze d'Oulx, Sansicario, Claviere, Montgenevre.",
-    links: [
-      { label: "Via Lattea info", url: "https://www.vialattea.it" }
-    ]
-  },
-  {
-    name: "Bardonecchia",
-    lat: 45.0794, lng: 6.7012,
-    country: "Italy",
-    pistes: 140,
-    altMin: 1312, altMax: 2750,
-    desc: "Upper Susa Valley, 2006 Olympics snowboard host. Relaxed Italian vibe, train direct from Turin.",
-    links: [
-      { label: "Official site", url: "https://www.bardonecchiaski.com" }
-    ]
-  },
-  {
-    name: "Courmayeur",
-    lat: 45.7855, lng: 6.9708,
-    country: "Italy",
-    pistes: 100,
-    altMin: 1224, altMax: 2755,
-    desc: "Most glamorous Italian resort, foot of Mont Blanc. Mont Blanc tunnel to Chamonix. Fashionable apres, luxury hotels.",
-    links: [
-      { label: "Official site", url: "https://www.courmayeur.com" }
-    ]
-  },
-  {
-    name: "La Thuile",
-    lat: 45.7118, lng: 6.9490,
-    country: "Italy",
-    pistes: 152,
-    altMin: 1450, altMax: 2642,
-    desc: "Espace San Bernardo with La Rosiere France. 35 lifts to 2,600m. Heli-skiing, authentic Valdotain atmosphere.",
-    links: [
-      { label: "Official site", url: "https://www.lathuile.it" }
-    ]
-  },
-  {
-    name: "Pila",
-    lat: 45.7320, lng: 7.3192,
-    country: "Italy",
-    pistes: 70,
-    altMin: 1800, altMax: 2700,
-    desc: "Above Aosta city, gondola access from valley floor. Local Italian resort, good infrastructure.",
-    links: [
-      { label: "Official site", url: "https://pila.it" }
-    ]
-  },
-  {
-    name: "Breuil-Cervinia",
-    lat: 45.9344, lng: 7.6310,
-    country: "Italy",
-    pistes: 350,
-    altMin: 2050, altMax: 3899,
-    desc: "Matterhorn base, cross-border skiing with Zermatt at 3,899m. 350km total, summer skiing on Plateau Rosa glacier.",
-    links: [
-      { label: "Official site", url: "https://www.cervinia.it" }
-    ]
-  },
-  {
-    name: "Alagna / Monterosa Ski",
-    lat: 45.8531, lng: 7.9354,
-    country: "Italy",
-    pistes: 180,
-    altMin: 1212, altMax: 3275,
-    desc: "Monte Rosa base, world-class freeride. Three valleys: Alagna, Champoluc, Gressoney. Walser culture village.",
-    links: [
-      { label: "Monterosa Ski", url: "https://monterosaski.eu" }
-    ]
-  },
-  {
-    name: "Limone Piemonte",
-    lat: 44.2015, lng: 7.5773,
-    country: "Italy",
-    pistes: 80,
-    altMin: 1050, altMax: 2100,
-    desc: "Riserva Bianca \u2014 French border, renovated for 2006 Olympics, Pearl of Alps. 30km south of Cuneo.",
-    links: [
-      { label: "Official site", url: "https://www.riservabianca.it" }
-    ]
-  },
-  {
-    name: "Prato Nevoso",
-    lat: 44.2534, lng: 7.7798,
-    country: "Italy",
-    pistes: 80,
-    altMin: 1500, altMax: 2000,
-    desc: "Night skiing, snowpark, family-friendly. Near Mondovi. Unique night skiing offer in the region.",
-    links: [
-      { label: "Official site", url: "http://www.pratonevoso.com" }
-    ]
-  }
-];
-const VILLAGES = [
-  {
-    name: "Venosc",
-    lat: 45.0030, lng: 6.1200,
-    country: "France",
-    altitude: 960,
-    nearResort: "Les Deux Alpes",
-    buyRating: 5,
-    desc: "THE TEMPLATE. Cobbled streets, artisans, gondola 7 min to Les 2 Alpes. Fraction of resort prices. Stone chalets, Ecrins National Park at doorstep.",
-    propertyLinks: [
-      { label: "Properstar listings", url: "https://www.properstar.com/france/venosc/buy?c=en" },
-      { label: "Kyero listings", url: "https://www.kyero.com/en/v%C3%A9nosc-property-for-sale-0l110122" },
-      { label: "Green Acres", url: "https://www.green-acres.fr/property-for-sale/venosc" }
-    ]
-  },
-  {
-    name: "Mont-de-Lans",
-    lat: 45.0362, lng: 6.1319,
-    country: "France",
-    altitude: 1300,
-    nearResort: "Les Deux Alpes",
-    buyRating: 4,
-    desc: "Northern sister village of Les 2 Alpes. Traditional, lift-connected, quieter and cheaper than the resort plateau.",
-    propertyLinks: [
-      { label: "Search on Seloger", url: "https://www.seloger.com/list.htm?ci=38239" },
-      { label: "LeBonCoin Isere", url: "https://www.leboncoin.fr/recherche?category=9&locations=Mont-de-Lans_38860" }
-    ]
-  },
-  {
-    name: "Bourg d'Oisans",
-    lat: 45.0525, lng: 6.0295,
-    country: "France",
-    altitude: 720,
-    nearResort: "Les 2 Alpes + Alpe d'Huez",
-    buyRating: 5,
-    desc: "Best value in the Oisans. Market town, hub for 3 resorts, year-round life. Upcoming gondola to Alpe d'Huez will transform values here.",
-    propertyLinks: [
-      { label: "Rightmove listings", url: "https://www.rightmove.co.uk/overseas-property-for-sale/Le-Bourg-dOisans.html" },
-      { label: "French Estate Agents", url: "https://www.frenchestateagents.com/french-property-for-sale/pubtown/38520/Le%20Bourg-d'Oisans" },
-      { label: "Properstar", url: "https://www.properstar.com/france/le-bourg-d-oisans/buy/apartment-house" }
-    ]
-  },
-  {
-    name: "Huez village",
-    lat: 45.0812, lng: 6.0578,
-    country: "France",
-    altitude: 1450,
-    nearResort: "Alpe d'Huez",
-    buyRating: 5,
-    desc: "Traditional village just below Alpe d'Huez. Televillage gondola to resort. Quiet, stone chalets, real mountain atmosphere.",
-    propertyLinks: [
-      { label: "Rightmove \u2014 Huez area", url: "https://www.rightmove.co.uk/overseas-property-for-sale/Le-Bourg-dOisans.html" },
-      { label: "Kyero search", url: "https://www.kyero.com/en/le-bourg-d-oisans-property-for-sale-0l61830" }
-    ]
-  },
-  {
-    name: "Villard-Reculas",
-    lat: 45.0941, lng: 6.0313,
-    country: "France",
-    altitude: 1500,
-    nearResort: "Alpe d'Huez",
-    buyRating: 4,
-    desc: "Tiny hamlet, linked to Alpe d'Huez Grand Domaine by Le Villarais lift. Stone & wood chalets, no crowds, never more than 300m from a lift.",
-    propertyLinks: [
-      { label: "Search LeBonCoin", url: "https://www.leboncoin.fr/recherche?category=9&locations=Villard-Reculas_38114" }
-    ]
-  },
-  {
-    name: "Le Monetier-les-Bains",
-    lat: 44.9493, lng: 6.5001,
-    country: "France",
-    altitude: 1480,
-    nearResort: "Serre Chevalier",
-    buyRating: 5,
-    desc: "Thermal spa village, larch forests, westernmost and quietest Serre Chevalier village. Thermal baths give year-round rental appeal.",
-    propertyLinks: [
-      { label: "Rightmove \u2014 Serre Chev", url: "https://www.rightmove.co.uk/overseas-property-for-sale/Serre-Chevalier.html" },
-      { label: "Seloger search", url: "https://www.seloger.com/list.htm?ci=05097" }
-    ]
-  },
-  {
-    name: "Briancon \u2014 Cite Vauban",
-    lat: 44.9007, lng: 6.6441,
-    country: "France",
-    altitude: 1320,
-    nearResort: "Serre Chev + Montgenevre",
-    buyRating: 4,
-    desc: "UNESCO fortified old town, highest city in France. Real local life, 10km from Montgenevre, 5km from Serre Chevalier lifts. Very affordable.",
-    propertyLinks: [
-      { label: "Rightmove \u2014 Briancon", url: "https://www.rightmove.co.uk/overseas-property-for-sale/Briancon.html" },
-      { label: "Seloger search", url: "https://www.seloger.com/list.htm?ci=05023" }
-    ]
-  },
-  {
-    name: "Les Houches",
-    lat: 45.8900, lng: 6.7981,
-    country: "France",
-    altitude: 1000,
-    nearResort: "Chamonix",
-    buyRating: 5,
-    desc: "6km from Chamonix, own ski area (55km). Old farm hamlets (Les Chavants, Vaudagne) to renovate. Significantly cheaper than Chamonix.",
-    propertyLinks: [
-      { label: "Rightmove \u2014 Les Houches", url: "https://www.rightmove.co.uk/overseas-property-for-sale/Les-Houches.html" },
-      { label: "Cham Immo agency", url: "https://www.cham-immo.com/en/real-estate/les-houches-74310" }
-    ]
-  },
-  {
-    name: "Argentiere",
-    lat: 45.9836, lng: 6.9269,
-    country: "France",
-    altitude: 1250,
-    nearResort: "Chamonix",
-    buyRating: 4,
-    desc: "Upper Chamonix valley, own glacier access. More authentic than town centre, freeride hotspot, strong rental market.",
-    propertyLinks: [
-      { label: "Rightmove \u2014 Argentiere", url: "https://www.rightmove.co.uk/overseas-property-for-sale/Argentiere.html" }
-    ]
-  },
-  {
-    name: "Sainte-Foy village",
-    lat: 45.5910, lng: 6.8827,
-    country: "France",
-    altitude: 1050,
-    nearResort: "Saint-Foy Tarentaise",
-    buyRating: 5,
-    desc: "The resort IS the village. Traditional farmhouses (chalets-mazots), very rare on market. Buy before it's discovered \u2014 prices still low.",
-    propertyLinks: [
-      { label: "Rightmove \u2014 St Foy", url: "https://www.rightmove.co.uk/overseas-property-for-sale/Sainte-Foy-Tarentaise.html" },
-      { label: "Seloger search", url: "https://www.seloger.com/list.htm?ci=73271" }
-    ]
-  },
-  {
-    name: "Valtournenche",
-    lat: 45.8695, lng: 7.6225,
-    country: "Italy",
-    altitude: 1524,
-    nearResort: "Breuil-Cervinia",
-    buyRating: 5,
-    desc: "Traditional Valdotain stone houses. Brengaz & Maen hamlets. Direct lift access to Cervinia-Zermatt 360km domain. Far cheaper than Cervinia.",
-    propertyLinks: [
-      { label: "Immobiliare.it listings", url: "https://www.immobiliare.it/en/vendita-case/valtournenche/" },
-      { label: "Idealista listings", url: "https://www.idealista.it/en/vendita-case/valtournenche-aosta/" },
-      { label: "Luxury Estate", url: "https://www.luxuryestate.com/italy/aosta-valley/provincia-di-aosta/valtournenche" }
-    ]
-  },
-  {
-    name: "Entreves hamlet",
-    lat: 45.8157, lng: 6.9608,
-    country: "Italy",
-    altitude: 1306,
-    nearResort: "Courmayeur",
-    buyRating: 4,
-    desc: "Tiny authentic hamlet 4km from Courmayeur, foot of Mont Blanc tunnel. Old stone farmhouses. Far more affordable than Courmayeur itself.",
-    propertyLinks: [
-      { label: "Immobiliare \u2014 Courmayeur", url: "https://www.immobiliare.it/en/vendita-case/courmayeur/" },
-      { label: "Idealista search", url: "https://www.idealista.it/en/vendita-case/courmayeur-aosta/" }
-    ]
-  },
-  {
-    name: "Pre-Saint-Didier",
-    lat: 45.7638, lng: 6.9871,
-    country: "Italy",
-    altitude: 1000,
-    nearResort: "Courmayeur + La Thuile",
-    buyRating: 5,
-    desc: "Famous thermal spa village, 5km from Courmayeur. Traditional Valdotain character, year-round appeal. Serves both Courmayeur and La Thuile.",
-    propertyLinks: [
-      { label: "Immobiliare \u2014 apartments", url: "https://www.immobiliare.it/en/vendita-appartamenti/pre-saint-didier/" },
-      { label: "Immobiliare \u2014 all", url: "https://www.immobiliare.it/en/vendita-case/pre-saint-didier/" }
-    ]
-  },
-  {
-    name: "Cesana Torinese",
-    lat: 44.9530, lng: 6.7936,
-    country: "Italy",
-    altitude: 1350,
-    nearResort: "Sestriere / Via Lattea",
-    buyRating: 5,
-    desc: "Medieval village, junction of 3 valleys, direct bus to Sestriere & Montgenevre. Avg ~3,200/m2. Studios from 157k, 3-beds from 248k.",
-    propertyLinks: [
-      { label: "Immobiliare.it (161 listings)", url: "https://www.immobiliare.it/en/vendita-case/cesana-torinese/" },
-      { label: "Idealista listings", url: "https://www.idealista.it/en/vendita-case/cesana-torinese-torino/" },
-      { label: "Wikicasa listings", url: "https://www.wikicasa.it/en/sale-houses/cesana-torinese/" }
-    ]
-  },
-  {
-    name: "Oulx",
-    lat: 45.0312, lng: 6.8321,
-    country: "Italy",
-    altitude: 1083,
-    nearResort: "Bardonecchia + Sestriere",
-    buyRating: 4,
-    desc: "Railway hub of upper Susa Valley. Train from Turin in 1hr. Access to Bardonecchia, Sestriere, Sauze d'Oulx. Affordable authentic Italian town.",
-    propertyLinks: [
-      { label: "Immobiliare \u2014 Oulx", url: "https://www.immobiliare.it/en/vendita-case/oulx/" },
-      { label: "Idealista \u2014 Oulx", url: "https://www.idealista.it/en/vendita-case/oulx-torino/" }
-    ]
-  },
-  {
-    name: "Aosta city",
-    lat: 45.7365, lng: 7.3152,
-    country: "Italy",
-    altitude: 583,
-    nearResort: "Pila",
-    buyRating: 4,
-    desc: "Roman city, year-round urban life, gondola to Pila ski resort. Unique urban-mountain lifestyle. Cheapest per m2 in the Valle d'Aosta region.",
-    propertyLinks: [
-      { label: "Immobiliare \u2014 Aosta", url: "https://www.immobiliare.it/en/vendita-case/aosta/" },
-      { label: "Idealista \u2014 Aosta", url: "https://www.idealista.it/en/vendita-case/aosta/" }
-    ]
-  },
-  {
-    name: "Alagna Valsesia",
-    lat: 45.8531, lng: 7.9354,
-    country: "Italy",
-    altitude: 1191,
-    nearResort: "Monterosa Ski",
-    buyRating: 5,
-    desc: "Ancient Walser wooden houses (500+ years old), protected architecture. Extraordinary when available. Monterosa Ski access. Rare, authentic buy.",
-    propertyLinks: [
-      { label: "Immobiliare \u2014 Alagna", url: "https://www.immobiliare.it/en/vendita-case/alagna-valsesia/" },
-      { label: "Idealista \u2014 Alagna", url: "https://www.idealista.it/en/vendita-case/alagna-valsesia-vercelli/" }
-    ]
-  },
-  {
-    name: "Allevard-les-Bains",
-    lat: 45.3945, lng: 6.0752,
-    country: "France",
-    altitude: 475,
-    nearResort: "Le Collet d'Allevard",
-    buyRating: 3,
-    desc: "Belle Epoque thermal spa town. 40min from Grenoble. Cheapest in the entire region. Good base for Sept Laux and Le Collet skiing.",
-    propertyLinks: [
-      { label: "Seloger \u2014 Allevard", url: "https://www.seloger.com/list.htm?ci=38011" },
-      { label: "LeBonCoin", url: "https://www.leboncoin.fr/recherche?category=9&locations=Allevard_38580" }
-    ]
-  }
-];
-const tiles = {
-  street: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 19
-  }),
-  terrain: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '&copy; Esri World Topo Map',
-    maxZoom: 19
-  }),
-  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '&copy; Esri World Imagery',
-    maxZoom: 19
-  })
+const DATA = {
+  "resorts": [
+    {
+      "name": "Alagna / Monterosa Ski",
+      "lat": 45.8539,
+      "lng": 7.9362,
+      "country": "Italy",
+      "pistes": 180,
+      "altMin": 1212,
+      "altMax": 3275,
+      "desc": "Monte Rosa base, world-class freeride. Three valleys: Alagna, Champoluc, Gressoney. Walser culture village.",
+      "links": [
+        {
+          "label": "Monterosa Ski",
+          "url": "https://monterosaski.eu"
+        }
+      ]
+    },
+    {
+      "name": "Alpe d'Huez",
+      "lat": 45.0892,
+      "lng": 6.0695,
+      "country": "France",
+      "pistes": 250,
+      "altMin": 1860,
+      "altMax": 3330,
+      "desc": "300 days sun, 16km Sarenne black run (longest in Alps), links Oz/Vaujany/Auris. Tour de France iconic climb. Upcoming gondola from Bourg d'Oisans.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.alpedhuez.com"
+        }
+      ]
+    },
+    {
+      "name": "Auron",
+      "lat": 44.225,
+      "lng": 6.9308,
+      "country": "France",
+      "pistes": 135,
+      "altMin": 1600,
+      "altMax": 2450,
+      "desc": "Largest ski area in the Alpes-Maritimes, village resort on a sunny plateau above the Tinée valley. Gondola down to Saint-Étienne-de-Tinée; gateway to the Mercantour.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://hiver.auron.com/"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/auron/"
+        }
+      ]
+    },
+    {
+      "name": "Bardonecchia",
+      "lat": 45.0794,
+      "lng": 6.7012,
+      "country": "Italy",
+      "pistes": 100,
+      "altMin": 1312,
+      "altMax": 2750,
+      "desc": "Upper Susa Valley, 2006 Olympics snowboard host. Relaxed Italian vibe, train direct from Turin.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.bardonecchiaski.com"
+        }
+      ]
+    },
+    {
+      "name": "Bormio",
+      "lat": 46.467,
+      "lng": 10.367,
+      "country": "Italy",
+      "pistes": 50,
+      "altMin": 1225,
+      "altMax": 3012,
+      "desc": "Home of the Stelvio — World Cup downhill classic, Milan-Cortina 2026 Olympic venue. 1,787m vertical to Cima Bianca at 3,012m, Roman thermal baths in the medieval old town. Alta Valtellina pass links Santa Caterina and Valdidentro.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.bormioski.eu"
+        },
+        {
+          "label": "Tourist office",
+          "url": "https://www.bormio.eu/en/"
+        }
+      ]
+    },
+    {
+      "name": "Breuil-Cervinia",
+      "lat": 45.9344,
+      "lng": 7.631,
+      "country": "Italy",
+      "pistes": 350,
+      "altMin": 2050,
+      "altMax": 3899,
+      "desc": "Matterhorn base, cross-border skiing with Zermatt at 3,899m. 350km total, summer skiing on Plateau Rosa glacier.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.cervinia.it"
+        }
+      ]
+    },
+    {
+      "name": "Canazei / Val di Fassa",
+      "lat": 46.4769,
+      "lng": 11.7703,
+      "country": "Italy",
+      "pistes": 110,
+      "altMin": 1320,
+      "altMax": 2485,
+      "desc": "Sella Ronda gateway — Belvedere gondola from the village centre straight onto the 40km Four Passes circuit. Val di Fassa/Carezza pass covers 110km; Dolomiti Superski links 1,200km.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.fassa.com"
+        }
+      ]
+    },
+    {
+      "name": "Chamonix",
+      "lat": 45.9226,
+      "lng": 6.8753,
+      "country": "France",
+      "pistes": 170,
+      "altMin": 1035,
+      "altMax": 3842,
+      "desc": "Mont Blanc base, world mountaineering capital. Vallee Blanche 22km longest off-piste run. Aiguille du Midi at 3,842m.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.chamonix.com"
+        }
+      ]
+    },
+    {
+      "name": "Chamrousse",
+      "lat": 45.1077,
+      "lng": 5.8766,
+      "country": "France",
+      "pistes": 90,
+      "altMin": 1650,
+      "altMax": 2250,
+      "desc": "30km from Grenoble, perfect day-trip resort. Panoramic views, 1968 Winter Olympics host, excellent value.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.chamrousse.com"
+        }
+      ]
+    },
+    {
+      "name": "Châtel",
+      "lat": 46.2675,
+      "lng": 6.8417,
+      "country": "France",
+      "pistes": 130,
+      "altMin": 1100,
+      "altMax": 2200,
+      "desc": "Traditional farming village turned resort on the Swiss border. 130km on the Espace Liberte pass (Super-Chatel, Linga, Pre-la-Joux plus Swiss Torgon/Morgins); the Portes du Soleil pass adds the full 600km. Sunny, family-friendly, chalet-style charm.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.chatel.com"
+        },
+        {
+          "label": "Portes du Soleil",
+          "url": "https://en.portesdusoleil.com"
+        }
+      ]
+    },
+    {
+      "name": "Cortina d'Ampezzo",
+      "lat": 46.5403,
+      "lng": 12.1361,
+      "country": "Italy",
+      "pistes": 120,
+      "altMin": 1217,
+      "altMax": 2828,
+      "desc": "Queen of the Dolomites, 1956 and 2026 Winter Olympics co-host. Tofana World Cup races, 120km own pistes, Dolomiti Superski pass links 1,200km.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://cortina.dolomiti.org"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/cortina-dampezzo/"
+        }
+      ]
+    },
+    {
+      "name": "Courchevel",
+      "lat": 45.4153,
+      "lng": 6.6344,
+      "country": "France",
+      "pistes": 150,
+      "altMin": 1100,
+      "altMax": 2738,
+      "desc": "The glamorous anchor of Les 3 Vallées — 150km of local pistes linked into the 600km domain, the world's largest ski area. Five altitude levels from Le Praz (1300) to 1850, Saulire summit at 2,738m. Michelin restaurants, altiport, luxury chalets.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.courchevel.com"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/courchevel/"
+        },
+        {
+          "label": "Les 3 Vallées",
+          "url": "https://www.les3vallees.com/en/"
+        }
+      ]
+    },
+    {
+      "name": "Courmayeur",
+      "lat": 45.7855,
+      "lng": 6.9708,
+      "country": "Italy",
+      "pistes": 100,
+      "altMin": 1224,
+      "altMax": 2755,
+      "desc": "Most glamorous Italian resort, foot of Mont Blanc. Mont Blanc tunnel to Chamonix. Fashionable apres, luxury hotels.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.courmayeur.com"
+        }
+      ]
+    },
+    {
+      "name": "Flaine",
+      "lat": 46.0042,
+      "lng": 6.6958,
+      "country": "France",
+      "pistes": 265,
+      "altMin": 1600,
+      "altMax": 2500,
+      "desc": "Marcel Breuer Bauhaus bowl with one of the best snow records in the Alps. Heart of the 265km Grand Massif, lift-linked to Samoëns, Morillon, Les Carroz and Sixt — including the 14km Cascades blue run down to Sixt-Fer-à-Cheval.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.flaine.com"
+        },
+        {
+          "label": "Grand Massif",
+          "url": "https://www.grand-massif.com/en/"
+        }
+      ]
+    },
+    {
+      "name": "Isola 2000",
+      "lat": 44.1867,
+      "lng": 7.1583,
+      "country": "France",
+      "pistes": 120,
+      "altMin": 1800,
+      "altMax": 2610,
+      "desc": "Snow-sure purpose-built resort at 2,000m, 90 min from Nice on the Italian border, edge of Mercantour National Park. 45 slopes; Mercantour pass links with Auron for 255 km.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://isola2000.com"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/isola-2000/"
+        }
+      ]
+    },
+    {
+      "name": "La Clusaz",
+      "lat": 45.905,
+      "lng": 6.4239,
+      "country": "France",
+      "pistes": 125,
+      "altMin": 1100,
+      "altMax": 2600,
+      "desc": "Aravis resort village since 1907, home of freeride star Candide Thovex, with five linked massifs and 125km of pistes. Aravis pass adds Le Grand-Bornand by ski-bus for ~220km total; hosts cross-country skiing at the 2030 Winter Olympics.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.laclusaz.com"
+        }
+      ]
+    },
+    {
+      "name": "La Grave",
+      "lat": 45.0443,
+      "lng": 6.3029,
+      "country": "France",
+      "pistes": 0,
+      "altMin": 1400,
+      "altMax": 3600,
+      "desc": "Pure off-piste legend — no groomed runs, one cable car, unguided freeride. 15 min from Les 2 Alpes. Expert only.",
+      "links": [
+        {
+          "label": "La Grave info",
+          "url": "https://www.la-grave.com"
+        }
+      ]
+    },
+    {
+      "name": "La Plagne",
+      "lat": 45.5059,
+      "lng": 6.6744,
+      "country": "France",
+      "pistes": 225,
+      "altMin": 1250,
+      "altMax": 3250,
+      "desc": "11 villages from family-friendly Montchavin to Plagne Centre, 70% of terrain above 2,000m. Linked to Les Arcs by the double-decker Vanoise Express, forming 425km Paradiski.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.la-plagne.com"
+        }
+      ]
+    },
+    {
+      "name": "La Rosiere",
+      "lat": 45.6273,
+      "lng": 6.8495,
+      "country": "France",
+      "pistes": 152,
+      "altMin": 1850,
+      "altMax": 2642,
+      "desc": "Espace San Bernardo — links to La Thuile Italy. One of few French Alps heli-skiing spots. Good snow guarantee.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.larosiere.net"
+        }
+      ]
+    },
+    {
+      "name": "La Thuile",
+      "lat": 45.7118,
+      "lng": 6.949,
+      "country": "Italy",
+      "pistes": 152,
+      "altMin": 1450,
+      "altMax": 2642,
+      "desc": "Espace San Bernardo with La Rosiere France. 35 lifts to 2,600m. Heli-skiing, authentic Valdotain atmosphere.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.lathuile.it"
+        }
+      ]
+    },
+    {
+      "name": "Le Grand-Bornand",
+      "lat": 45.9425,
+      "lng": 6.4258,
+      "country": "France",
+      "pistes": 90,
+      "altMin": 1000,
+      "altMax": 2100,
+      "desc": "Authentic reblochon-making village with ski centre at Le Chinaillon (1,300m), 90km of pistes and a biathlon World Cup venue — Olympic biathlon host in 2030. Aravis domain links by ski-bus to La Clusaz for ~220km.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.legrandbornand.com"
+        }
+      ]
+    },
+    {
+      "name": "Les Arcs",
+      "lat": 45.5717,
+      "lng": 6.8078,
+      "country": "France",
+      "pistes": 200,
+      "altMin": 1200,
+      "altMax": 3226,
+      "desc": "Purpose-built villages Arc 1600-2000 above Bourg-Saint-Maurice, Aiguille Rouge summit at 3,226m with a 7km descent to Villaroger. Vanoise Express cable car links to La Plagne for the 425km Paradiski domain.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.lesarcs.com"
+        }
+      ]
+    },
+    {
+      "name": "Les Deux Alpes ⭐",
+      "lat": 45.0176,
+      "lng": 6.1249,
+      "country": "France",
+      "pistes": 220,
+      "altMin": 1300,
+      "altMax": 3600,
+      "desc": "Your reference resort — glacier to 3,600m, 2,300m vertical, world's fastest gondola, year-round skiing. Grande Galaxie pass links to Alpe d'Huez, Serre Chevalier, Puy-Saint-Vincent.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.les2alpes.com"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/les-2-alpes/"
+        }
+      ]
+    },
+    {
+      "name": "Les Sept Laux",
+      "lat": 45.2557,
+      "lng": 5.9931,
+      "country": "France",
+      "pistes": 70,
+      "altMin": 1350,
+      "altMax": 2400,
+      "desc": "Belledonne range, freeride destination, excellent value. 45 min from Grenoble & Chambery.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.les7laux.com"
+        }
+      ]
+    },
+    {
+      "name": "Limone Piemonte",
+      "lat": 44.2015,
+      "lng": 7.5773,
+      "country": "Italy",
+      "pistes": 80,
+      "altMin": 1050,
+      "altMax": 2100,
+      "desc": "Riserva Bianca — French border, renovated for 2006 Olympics, Pearl of Alps. 30km south of Cuneo.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.riservabianca.it"
+        }
+      ]
+    },
+    {
+      "name": "Livigno",
+      "lat": 46.5386,
+      "lng": 10.1357,
+      "country": "Italy",
+      "pistes": 115,
+      "altMin": 1816,
+      "altMax": 2798,
+      "desc": "Duty-free high valley at 1,816m, snow-sure all season. Two ski areas — Mottolino and Carosello 3000 — 115km of slopes and legendary freeride. Part of Alta Valtellina pass with Bormio.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.livigno.eu"
+        },
+        {
+          "label": "Skipass Livigno",
+          "url": "https://www.skipasslivigno.com/en/lifts-and-slopes/"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/livigno/"
+        }
+      ]
+    },
+    {
+      "name": "Megeve",
+      "lat": 45.8498,
+      "lng": 6.615,
+      "country": "France",
+      "pistes": 450,
+      "altMin": 1050,
+      "altMax": 2350,
+      "desc": "Luxury, traditional village, Mont Blanc views. Evasion Mont-Blanc area 450km. Horse-drawn sleighs, Michelin restaurants, cobbled streets.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.megeve.com"
+        }
+      ]
+    },
+    {
+      "name": "Méribel",
+      "lat": 45.401,
+      "lng": 6.5655,
+      "country": "France",
+      "pistes": 150,
+      "altMin": 1450,
+      "altMax": 2952,
+      "desc": "Geographic heart of Les 3 Vallées, dead centre of the 600km linked domain — Courchevel one side, Val Thorens the other. 150km local pistes up to Mont Vallon (2,952m). Traditional wood-and-stone chalet architecture, family favourite.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.meribel.net/en/"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/meribel/"
+        }
+      ]
+    },
+    {
+      "name": "Montgenevre",
+      "lat": 44.9344,
+      "lng": 6.7299,
+      "country": "France",
+      "pistes": 400,
+      "altMin": 1860,
+      "altMax": 2700,
+      "desc": "French-Italian border resort, gateway to Via Lattea 400km mega-domain. Cross into Italy for pasta by lunchtime.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://montgenevre.com"
+        }
+      ]
+    },
+    {
+      "name": "Morzine-Avoriaz",
+      "lat": 46.1789,
+      "lng": 6.7086,
+      "country": "France",
+      "pistes": 600,
+      "altMin": 1000,
+      "altMax": 2466,
+      "desc": "Classic Savoyard market town linked by lift to car-free Avoriaz at 1,800m. 120km on the local Morzine-Les Gets pass plus Avoriaz's 75km, and the full Portes du Soleil pass unlocks 600km across 12 resorts. Huge summer MTB scene keeps it lively year-round.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.morzine-avoriaz.com"
+        },
+        {
+          "label": "Avoriaz 1800",
+          "url": "https://www.avoriaz.com"
+        }
+      ]
+    },
+    {
+      "name": "Pila",
+      "lat": 45.6873,
+      "lng": 7.3108,
+      "country": "Italy",
+      "pistes": 70,
+      "altMin": 1800,
+      "altMax": 2700,
+      "desc": "Above Aosta city, gondola access from valley floor. Local Italian resort, good infrastructure.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://pila.it"
+        }
+      ]
+    },
+    {
+      "name": "Prato Nevoso",
+      "lat": 44.2534,
+      "lng": 7.7798,
+      "country": "Italy",
+      "pistes": 130,
+      "altMin": 1500,
+      "altMax": 2000,
+      "desc": "Night skiing, snowpark, family-friendly. Near Mondovi. Unique night skiing offer in the region.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.pratonevoso.com"
+        }
+      ]
+    },
+    {
+      "name": "Puy-Saint-Vincent",
+      "lat": 44.8188,
+      "lng": 6.4871,
+      "country": "France",
+      "pistes": 75,
+      "altMin": 1400,
+      "altMax": 2750,
+      "desc": "Ecrins massif, linked via Grande Galaxie pass with Les 2 Alpes. Great value, family friendly, quiet slopes.",
+      "links": [
+        {
+          "label": "Tourist office",
+          "url": "https://www.paysdesecrins.com"
+        }
+      ]
+    },
+    {
+      "name": "Saint-Foy-Tarentaise",
+      "lat": 45.5761,
+      "lng": 6.8938,
+      "country": "France",
+      "pistes": 25,
+      "altMin": 1550,
+      "altMax": 2620,
+      "desc": "Hidden gem, 6 lifts, legendary off-piste powder fields. No queues ever. Near Les Arcs and Val d'Isere for resort hopping.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.saintefoy-ski.com"
+        }
+      ]
+    },
+    {
+      "name": "Samoëns",
+      "lat": 46.0847,
+      "lng": 6.7281,
+      "country": "France",
+      "pistes": 265,
+      "altMin": 720,
+      "altMax": 2500,
+      "desc": "Historic stonecutters' village, the only French ski resort classified as a Monument Historique. Grand Massif Express gondola reaches Samoëns 1600 in 8 minutes, opening the 265km Grand Massif shared with Flaine, Morillon, Les Carroz and Sixt.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.samoens.com"
+        },
+        {
+          "label": "Grand Massif",
+          "url": "https://www.grand-massif.com/en/"
+        }
+      ]
+    },
+    {
+      "name": "Serre Chevalier",
+      "lat": 44.9462,
+      "lng": 6.5593,
+      "country": "France",
+      "pistes": 250,
+      "altMin": 1350,
+      "altMax": 2800,
+      "desc": "4 linked villages, near Briancon & Italian border, 300 days sun. Larch forest skiing, thermal baths at Monetier. Most underrated mega-resort in France.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.serre-chevalier.com"
+        }
+      ]
+    },
+    {
+      "name": "Sestriere / Via Lattea",
+      "lat": 44.9544,
+      "lng": 6.8747,
+      "country": "Italy",
+      "pistes": 400,
+      "altMin": 1350,
+      "altMax": 2823,
+      "desc": "2006 Turin Olympics hub, highest Via Lattea village at 2,035m. 400km Milky Way includes Sauze d'Oulx, Sansicario, Claviere, Montgenevre.",
+      "links": [
+        {
+          "label": "Via Lattea info",
+          "url": "https://www.vialattea.it"
+        }
+      ]
+    },
+    {
+      "name": "Tignes",
+      "lat": 45.4683,
+      "lng": 6.9056,
+      "country": "France",
+      "pistes": 300,
+      "altMin": 1550,
+      "altMax": 3456,
+      "desc": "Five villages from 1,550m to 2,100m around the dam lake. Grande Motte glacier means summer skiing; linked 300km domain with Val d'Isère, one of the most snow-sure areas in the Alps.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://en.tignes.net"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/tignes-val-disere/"
+        }
+      ]
+    },
+    {
+      "name": "Val d'Isère",
+      "lat": 45.4506,
+      "lng": 6.9781,
+      "country": "France",
+      "pistes": 300,
+      "altMin": 1550,
+      "altMax": 3456,
+      "desc": "Legendary 1,850m resort, 1992 Olympic downhill venue and regular World Cup host. Shares the 300km Tignes – Val d'Isère domain (formerly Espace Killy), skiing to the Pisaillas glacier at 3,456m.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.valdisere.com"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/tignes-val-disere/"
+        }
+      ]
+    },
+    {
+      "name": "Val Gardena / Ortisei",
+      "lat": 46.5752,
+      "lng": 11.6721,
+      "country": "Italy",
+      "pistes": 181,
+      "altMin": 1236,
+      "altMax": 2518,
+      "desc": "181km with Alpe di Siusi, home of the Saslong World Cup downhill and the 10km La Longia run down from Seceda. Sellaronda links straight into Alta Badia and Val di Fassa.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.val-gardena.com"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/val-gardena/"
+        }
+      ]
+    },
+    {
+      "name": "Val Thorens",
+      "lat": 45.2981,
+      "lng": 6.58,
+      "country": "France",
+      "pistes": 150,
+      "altMin": 1800,
+      "altMax": 3230,
+      "desc": "Europe's highest major resort at 2,300m — snow-sure from November to May. 150km of local pistes (with Orelle) up to Cime Caron at 3,230m, highest point of the 600km Les 3 Vallées domain.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.valthorens.com"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/val-thorens/"
+        }
+      ]
+    },
+    {
+      "name": "Valberg",
+      "lat": 44.0953,
+      "lng": 6.9289,
+      "country": "France",
+      "pistes": 90,
+      "altMin": 1412,
+      "altMax": 2020,
+      "desc": "Cradle of skiing in the Alpes-Maritimes (founded 1936), 1h15 from Nice. Linked domain with Beuil-les-Launes, larch forests, sea views from the summit.",
+      "links": [
+        {
+          "label": "Official site",
+          "url": "https://www.valberg.com"
+        },
+        {
+          "label": "Ski area info",
+          "url": "https://www.skiresort.info/ski-resort/valberg-beuil/"
+        }
+      ]
+    },
+    {
+      "name": "Villard-de-Lans / Corrençon",
+      "lat": 45.0706,
+      "lng": 5.5513,
+      "country": "France",
+      "pistes": 125,
+      "altMin": 1160,
+      "altMax": 2050,
+      "desc": "Vercors plateau, Nordic + alpine, charming family village. 30km from Grenoble.",
+      "links": [
+        {
+          "label": "Tourist info",
+          "url": "https://www.villardcorrencon.com"
+        }
+      ]
+    }
+  ],
+  "villages": [
+    {
+      "name": "Alagna Valsesia",
+      "lat": 45.8532,
+      "lng": 7.9375,
+      "country": "Italy",
+      "altitude": 1154,
+      "nearResort": "Monterosa Ski",
+      "buyRating": 5,
+      "desc": "Ancient Walser wooden houses (500+ years old), protected architecture. Extraordinary when available. Monterosa Ski access. Rare, authentic buy.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare — Alagna",
+          "url": "https://www.immobiliare.it/en/vendita-case/alagna-valsesia/"
+        },
+        {
+          "label": "Idealista — Alagna",
+          "url": "https://www.idealista.it/en/vendita-case/alagna-valsesia-vercelli/"
+        }
+      ]
+    },
+    {
+      "name": "Allevard-les-Bains",
+      "lat": 45.3945,
+      "lng": 6.0752,
+      "country": "France",
+      "altitude": 475,
+      "nearResort": "Le Collet d'Allevard",
+      "buyRating": 3,
+      "desc": "Belle Epoque thermal spa town. 40min from Grenoble. Cheapest in the entire region. Good base for Sept Laux and Le Collet skiing.",
+      "propertyLinks": [
+        {
+          "label": "Seloger — Allevard",
+          "url": "https://www.seloger.com/list.htm?ci=38006"
+        },
+        {
+          "label": "LeBonCoin",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Allevard_38580"
+        }
+      ]
+    },
+    {
+      "name": "Aosta city",
+      "lat": 45.7365,
+      "lng": 7.3152,
+      "country": "Italy",
+      "altitude": 583,
+      "nearResort": "Pila",
+      "buyRating": 4,
+      "desc": "Roman city, year-round urban life, gondola to Pila ski resort. Unique urban-mountain lifestyle. Cheapest per m2 in the Valle d'Aosta region.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare — Aosta",
+          "url": "https://www.immobiliare.it/en/vendita-case/aosta/"
+        },
+        {
+          "label": "Idealista — Aosta",
+          "url": "https://www.idealista.it/en/vendita-case/aosta/"
+        }
+      ]
+    },
+    {
+      "name": "Argentiere",
+      "lat": 45.9836,
+      "lng": 6.9269,
+      "country": "France",
+      "altitude": 1250,
+      "nearResort": "Chamonix",
+      "buyRating": 4,
+      "desc": "Upper Chamonix valley, own glacier access. More authentic than town centre, freeride hotspot, strong rental market.",
+      "propertyLinks": [
+        {
+          "label": "Rightmove — Argentiere",
+          "url": "https://www.rightmove.co.uk/overseas-property-for-sale/Argentiere.html"
+        }
+      ]
+    },
+    {
+      "name": "Bourg d'Oisans",
+      "lat": 45.0525,
+      "lng": 6.0295,
+      "country": "France",
+      "altitude": 720,
+      "nearResort": "Les 2 Alpes + Alpe d'Huez",
+      "buyRating": 5,
+      "desc": "Best value in the Oisans. Market town, hub for 3 resorts, year-round life. Upcoming gondola to Alpe d'Huez will transform values here.",
+      "propertyLinks": [
+        {
+          "label": "Rightmove listings",
+          "url": "https://www.rightmove.co.uk/overseas-property-for-sale/Le-Bourg-dOisans.html"
+        },
+        {
+          "label": "French Estate Agents",
+          "url": "https://www.frenchestateagents.com/french-property-for-sale/pubtown/38520/Le%20Bourg-d'Oisans"
+        },
+        {
+          "label": "Properstar",
+          "url": "https://www.properstar.com/france/le-bourg-d-oisans/buy/apartment-house"
+        }
+      ]
+    },
+    {
+      "name": "Bourg-Saint-Maurice",
+      "lat": 45.6175,
+      "lng": 6.7694,
+      "country": "France",
+      "altitude": 810,
+      "nearResort": "Tignes / Val d'Isère + Les Arcs (Paradiski)",
+      "buyRating": 5,
+      "desc": "Haute-Tarentaise hub town with direct TGV from Paris and a 7-minute funicular to Arc 1600. Year-round local life and a fraction of altitude-resort prices; gateway to both Paradiski and Tignes – Val d'Isère.",
+      "propertyLinks": [
+        {
+          "label": "Rightmove listings",
+          "url": "https://www.rightmove.co.uk/overseas-property-for-sale/Bourg-St-Maurice.html"
+        },
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/bourg-saint-maurice-les-arcs"
+        },
+        {
+          "label": "LeBonCoin Savoie",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Bourg-Saint-Maurice_73700"
+        }
+      ]
+    },
+    {
+      "name": "Briancon — Cite Vauban",
+      "lat": 44.9007,
+      "lng": 6.6441,
+      "country": "France",
+      "altitude": 1320,
+      "nearResort": "Serre Chev + Montgenevre",
+      "buyRating": 4,
+      "desc": "UNESCO fortified old town, highest city in France. Real local life, 10km from Montgenevre, 5km from Serre Chevalier lifts. Very affordable.",
+      "propertyLinks": [
+        {
+          "label": "Rightmove — Briancon",
+          "url": "https://www.rightmove.co.uk/overseas-property-for-sale/Briancon.html"
+        },
+        {
+          "label": "Seloger search",
+          "url": "https://www.seloger.com/list.htm?ci=05023"
+        }
+      ]
+    },
+    {
+      "name": "Brides-les-Bains",
+      "lat": 45.4533,
+      "lng": 6.5675,
+      "country": "France",
+      "altitude": 600,
+      "nearResort": "Méribel (Les 3 Vallées)",
+      "buyRating": 4,
+      "desc": "Belle Epoque thermal spa town at 600m — Thermes, casino, real year-round life. Olympe gondola reaches Méribel in 25 min, making it the budget gateway to the 3 Vallées. Among the cheapest property in the whole domain.",
+      "propertyLinks": [
+        {
+          "label": "Properstar listings",
+          "url": "https://www.properstar.com/france/brides-les-bains/buy"
+        },
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/brides-les-bains"
+        },
+        {
+          "label": "LeBonCoin search",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Brides-les-Bains_73570"
+        }
+      ]
+    },
+    {
+      "name": "Cesana Torinese",
+      "lat": 44.953,
+      "lng": 6.7936,
+      "country": "Italy",
+      "altitude": 1350,
+      "nearResort": "Sestriere / Via Lattea",
+      "buyRating": 5,
+      "desc": "Medieval village, junction of 3 valleys, direct bus to Sestriere & Montgenevre. Avg ~3,200/m2. Studios from 157k, 3-beds from 248k.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare.it (161 listings)",
+          "url": "https://www.immobiliare.it/en/vendita-case/cesana-torinese/"
+        },
+        {
+          "label": "Idealista listings",
+          "url": "https://www.idealista.it/en/vendita-case/cesana-torinese-torino/"
+        },
+        {
+          "label": "Wikicasa listings",
+          "url": "https://www.wikicasa.it/en/sale-houses/cesana-torinese/"
+        }
+      ]
+    },
+    {
+      "name": "Corvara (Alta Badia)",
+      "lat": 46.5496,
+      "lng": 11.874,
+      "country": "Italy",
+      "altitude": 1568,
+      "nearResort": "Alta Badia / Sella Ronda",
+      "buyRating": 3,
+      "desc": "Main hub of Alta Badia at the foot of Sassongher, Gran Risa World Cup slope in town. Ladin culture, year-round tourism, but premium prices around 7,000 EUR/m2 — the Cortina of South Tyrol.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare.it listings",
+          "url": "https://www.immobiliare.it/vendita-case/corvara-in-badia/"
+        },
+        {
+          "label": "Idealista listings",
+          "url": "https://www.idealista.it/en/vendita-case/corvara-in-badia-bolzano/"
+        }
+      ]
+    },
+    {
+      "name": "Entreves hamlet",
+      "lat": 45.8157,
+      "lng": 6.9608,
+      "country": "Italy",
+      "altitude": 1306,
+      "nearResort": "Courmayeur",
+      "buyRating": 4,
+      "desc": "Tiny authentic hamlet 4km from Courmayeur, foot of Mont Blanc tunnel. Old stone farmhouses. Far more affordable than Courmayeur itself.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare — Courmayeur",
+          "url": "https://www.immobiliare.it/en/vendita-case/courmayeur/"
+        },
+        {
+          "label": "Idealista search",
+          "url": "https://www.idealista.it/en/vendita-case/courmayeur-aosta/"
+        }
+      ]
+    },
+    {
+      "name": "Huez village",
+      "lat": 45.0812,
+      "lng": 6.0578,
+      "country": "France",
+      "altitude": 1450,
+      "nearResort": "Alpe d'Huez",
+      "buyRating": 5,
+      "desc": "Traditional village just below Alpe d'Huez. Televillage gondola to resort. Quiet, stone chalets, real mountain atmosphere.",
+      "propertyLinks": [
+        {
+          "label": "Rightmove — Huez area",
+          "url": "https://www.rightmove.co.uk/overseas-property-for-sale/Le-Bourg-dOisans.html"
+        },
+        {
+          "label": "Kyero search",
+          "url": "https://www.kyero.com/en/le-bourg-d-oisans-property-for-sale-0l61830"
+        }
+      ]
+    },
+    {
+      "name": "Le Monêtier-les-Bains",
+      "lat": 44.9761,
+      "lng": 6.5099,
+      "country": "France",
+      "altitude": 1480,
+      "nearResort": "Serre Chevalier",
+      "buyRating": 5,
+      "desc": "Thermal spa village, larch forests, westernmost and quietest Serre Chevalier village. Thermal baths give year-round rental appeal.",
+      "propertyLinks": [
+        {
+          "label": "Rightmove — Serre Chev",
+          "url": "https://www.rightmove.co.uk/overseas-property-for-sale/Serre-Chevalier.html"
+        },
+        {
+          "label": "Seloger search",
+          "url": "https://www.seloger.com/list.htm?ci=05079"
+        }
+      ]
+    },
+    {
+      "name": "Les Houches",
+      "lat": 45.89,
+      "lng": 6.7981,
+      "country": "France",
+      "altitude": 1000,
+      "nearResort": "Chamonix",
+      "buyRating": 5,
+      "desc": "6km from Chamonix, own ski area (55km). Old farm hamlets (Les Chavants, Vaudagne) to renovate. Significantly cheaper than Chamonix.",
+      "propertyLinks": [
+        {
+          "label": "Rightmove — Les Houches",
+          "url": "https://www.rightmove.co.uk/overseas-property-for-sale/Les-Houches.html"
+        },
+        {
+          "label": "Cham Immo agency",
+          "url": "https://www.cham-immo.com/en/real-estate/les-houches-74310"
+        }
+      ]
+    },
+    {
+      "name": "Moena",
+      "lat": 46.3768,
+      "lng": 11.6594,
+      "country": "Italy",
+      "altitude": 1184,
+      "nearResort": "Canazei + TreValli (Alpe Lusia / San Pellegrino)",
+      "buyRating": 4,
+      "desc": "Fairy of the Dolomites — largest town in Val di Fassa with real year-round life and Marcialonga start. Cheaper than Canazei, 5 min to Alpe di Lusia lifts, easy road to San Pellegrino Pass.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare.it listings",
+          "url": "https://www.immobiliare.it/vendita-case/moena/"
+        },
+        {
+          "label": "Idealista listings",
+          "url": "https://www.idealista.it/en/vendita-case/moena-trento/"
+        }
+      ]
+    },
+    {
+      "name": "Mont-de-Lans",
+      "lat": 45.0362,
+      "lng": 6.1319,
+      "country": "France",
+      "altitude": 1300,
+      "nearResort": "Les Deux Alpes",
+      "buyRating": 4,
+      "desc": "Northern sister village of Les 2 Alpes. Traditional, lift-connected, quieter and cheaper than the resort plateau.",
+      "propertyLinks": [
+        {
+          "label": "Search on Seloger",
+          "url": "https://www.seloger.com/list.htm?ci=38253"
+        },
+        {
+          "label": "LeBonCoin Isere",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Mont-de-Lans_38860"
+        }
+      ]
+    },
+    {
+      "name": "Montchavin-Les Coches",
+      "lat": 45.5594,
+      "lng": 6.7326,
+      "country": "France",
+      "altitude": 1250,
+      "nearResort": "La Plagne (Paradiski)",
+      "buyRating": 4,
+      "desc": "Working Savoyard village (Montchavin 1,250m) plus Les Coches (1,450m), linked year-round by gondola and sitting at the foot of the Vanoise Express. Pedestrian centre, real shops open all year, notably cheaper than La Plagne's high-altitude stations.",
+      "propertyLinks": [
+        {
+          "label": "Seloger search",
+          "url": "https://www.seloger.com/list.htm?ci=73150"
+        },
+        {
+          "label": "LeBonCoin Tarentaise",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Montchavin_73210"
+        }
+      ]
+    },
+    {
+      "name": "Montriond",
+      "lat": 46.1981,
+      "lng": 6.695,
+      "country": "France",
+      "altitude": 940,
+      "nearResort": "Morzine-Avoriaz",
+      "buyRating": 4,
+      "desc": "Quiet village 5 min north of Morzine, its Ardent hamlet gondola giving direct Portes du Soleil access while prices stay below resort levels. Lac de Montriond at 1,072m anchors strong summer and winter rental appeal.",
+      "propertyLinks": [
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/montriond"
+        },
+        {
+          "label": "Search on Seloger",
+          "url": "https://www.seloger.com/list.htm?ci=74188"
+        },
+        {
+          "label": "LeBonCoin search",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Montriond_74110"
+        }
+      ]
+    },
+    {
+      "name": "Oulx",
+      "lat": 45.0312,
+      "lng": 6.8321,
+      "country": "Italy",
+      "altitude": 1083,
+      "nearResort": "Bardonecchia + Sestriere",
+      "buyRating": 4,
+      "desc": "Railway hub of upper Susa Valley. Train from Turin in 1hr. Access to Bardonecchia, Sestriere, Sauze d'Oulx. Affordable authentic Italian town.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare — Oulx",
+          "url": "https://www.immobiliare.it/en/vendita-case/oulx/"
+        },
+        {
+          "label": "Idealista — Oulx",
+          "url": "https://www.idealista.it/en/vendita-case/oulx-torino/"
+        }
+      ]
+    },
+    {
+      "name": "Peisey-Vallandry",
+      "lat": 45.546,
+      "lng": 6.7559,
+      "country": "France",
+      "altitude": 1320,
+      "nearResort": "Les Arcs + La Plagne (Paradiski)",
+      "buyRating": 4,
+      "desc": "Five traditional year-round hamlets (Peisey, Landry, Vallandry, Plan-Peisey, Nancroix) at the Vanoise park edge. Lonzagne télécabine to Plan-Peisey lifts and the Vanoise Express station. Still cheaper than Arc 1950/2000, though new builds run 9-11k EUR/m2.",
+      "propertyLinks": [
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/peisey-nancroix-les-arcs"
+        },
+        {
+          "label": "Leggett listings",
+          "url": "https://www.frenchestateagents.com/french-property-for-sale/pubtown/73210/Peisey-Nancroix"
+        },
+        {
+          "label": "Seloger search",
+          "url": "https://www.seloger.com/list.htm?ci=73197"
+        }
+      ]
+    },
+    {
+      "name": "Ponte di Legno",
+      "lat": 46.2586,
+      "lng": 10.5087,
+      "country": "Italy",
+      "altitude": 1258,
+      "nearResort": "Ponte di Legno-Tonale (Presena glacier)",
+      "buyRating": 4,
+      "desc": "Authentic pre-war Valcamonica village, gondola-linked into the 100km Pontedilegno-Tonale ski area up to the 3,000m Presena glacier. Cheaper than Passo Tonale up the road, real year-round village life, Gavia Pass road to Bormio in summer.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare.it listings",
+          "url": "https://www.immobiliare.it/en/vendita-case/ponte-di-legno/"
+        },
+        {
+          "label": "Idealista listings",
+          "url": "https://www.idealista.it/en/vendita-case/ponte-di-legno-brescia/"
+        }
+      ]
+    },
+    {
+      "name": "Pre-Saint-Didier",
+      "lat": 45.7638,
+      "lng": 6.9871,
+      "country": "Italy",
+      "altitude": 1000,
+      "nearResort": "Courmayeur + La Thuile",
+      "buyRating": 5,
+      "desc": "Famous thermal spa village, 5km from Courmayeur. Traditional Valdotain character, year-round appeal. Serves both Courmayeur and La Thuile.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare — apartments",
+          "url": "https://www.immobiliare.it/en/vendita-appartamenti/pre-saint-didier/"
+        },
+        {
+          "label": "Immobiliare — all",
+          "url": "https://www.immobiliare.it/en/vendita-case/pre-saint-didier/"
+        }
+      ]
+    },
+    {
+      "name": "Saint-Dalmas-le-Selvage",
+      "lat": 44.285,
+      "lng": 6.8775,
+      "country": "France",
+      "altitude": 1500,
+      "nearResort": "Auron + Isola 2000",
+      "buyRating": 2,
+      "desc": "Highest village in the Alpes-Maritimes (town hall at 1,515m), deep in the Mercantour on the Bonette road. Ultra-cheap stone houses from ~€80k, nordic & ski-touring base, 20 min from Auron — pure nature play, minimal services.",
+      "propertyLinks": [
+        {
+          "label": "SeLoger listings",
+          "url": "https://www.seloger.com/recherche/achat/immobilier/provence-alpes-cote-d-azur/saint-dalmas-le-selvage-06660/ad08fr2070"
+        },
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/saint-dalmas-le-selvage"
+        }
+      ]
+    },
+    {
+      "name": "Saint-Étienne-de-Tinée",
+      "lat": 44.2578,
+      "lng": 6.9253,
+      "country": "France",
+      "altitude": 1140,
+      "nearResort": "Auron",
+      "buyRating": 4,
+      "desc": "Authentic village of pastel facades, chapels and sundials at 1,140m, linked to Auron by direct gondola. Real year-round life on the Route des Grandes Alpes, cheaper than the resort plateau.",
+      "propertyLinks": [
+        {
+          "label": "SeLoger listings",
+          "url": "https://www.seloger.com/recherche/achat/immobilier/provence-alpes-cote-d-azur/saint-etienne-de-tinee-06660/ad08fr2071"
+        },
+        {
+          "label": "LeBonCoin houses",
+          "url": "https://www.leboncoin.fr/cl/ventes_immobilieres/cp_saint-etienne-de-tin%C3%A9e_06660/real_estate_type:1"
+        }
+      ]
+    },
+    {
+      "name": "Saint-Jean-d'Aulps",
+      "lat": 46.235,
+      "lng": 6.6564,
+      "country": "France",
+      "altitude": 950,
+      "nearResort": "Morzine-Avoriaz",
+      "buyRating": 4,
+      "desc": "Working year-round Vallee d'Aulps village with its own Roc d'Enfer / La Grande Terche ski area (950-1,800m) and shuttles into the Portes du Soleil, 10 min from Morzine at clearly lower prices. Cistercian abbey, active farming community, real local life.",
+      "propertyLinks": [
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/saint-jean-d-aulps"
+        },
+        {
+          "label": "Search on Seloger",
+          "url": "https://www.seloger.com/list.htm?ci=74238"
+        },
+        {
+          "label": "LeBonCoin search",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Saint-Jean-d-Aulps_74430"
+        }
+      ]
+    },
+    {
+      "name": "Saint-Martin-de-Belleville",
+      "lat": 45.3811,
+      "lng": 6.5053,
+      "country": "France",
+      "altitude": 1450,
+      "nearResort": "Les Menuires + Val Thorens (Les 3 Vallées)",
+      "buyRating": 4,
+      "desc": "The authentic village of the 3 Vallées — 16th-century church, working farms, Michelin-starred La Bouitte. Own gondola straight into the 600km domain, prices well below Méribel or Courchevel. Lived-in year-round.",
+      "propertyLinks": [
+        {
+          "label": "Properstar listings",
+          "url": "https://www.properstar.com/france/saint-martin-de-belleville/buy"
+        },
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/les-belleville"
+        },
+        {
+          "label": "LeBonCoin search",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Saint-Martin-de-Belleville_73440"
+        }
+      ]
+    },
+    {
+      "name": "Sainte-Foy village",
+      "lat": 45.591,
+      "lng": 6.8827,
+      "country": "France",
+      "altitude": 1050,
+      "nearResort": "Saint-Foy Tarentaise",
+      "buyRating": 5,
+      "desc": "The resort IS the village. Traditional farmhouses (chalets-mazots), very rare on market. Buy before it's discovered — prices still low.",
+      "propertyLinks": [
+        {
+          "label": "Rightmove — St Foy",
+          "url": "https://www.rightmove.co.uk/overseas-property-for-sale/Sainte-Foy-Tarentaise.html"
+        },
+        {
+          "label": "Seloger search",
+          "url": "https://www.seloger.com/list.htm?ci=73232"
+        }
+      ]
+    },
+    {
+      "name": "Sixt-Fer-à-Cheval",
+      "lat": 46.0558,
+      "lng": 6.7764,
+      "country": "France",
+      "altitude": 760,
+      "nearResort": "Samoëns / Grand Massif",
+      "buyRating": 4,
+      "desc": "One of Les Plus Beaux Villages de France at the end of the Giffre valley, famed for the Cirque du Fer-à-Cheval Grand Site de France. On the Grand Massif pass with the 14km Cascades piste ending here and shuttles to Samoëns; tiny, tightly-held market well below Samoëns prices.",
+      "propertyLinks": [
+        {
+          "label": "Green Acres listings",
+          "url": "https://www.green-acres.fr/property-for-sale/sixt-fer-a-cheval"
+        },
+        {
+          "label": "LeBonCoin search",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Sixt-Fer-%C3%A0-Cheval_74740"
+        }
+      ]
+    },
+    {
+      "name": "Thônes",
+      "lat": 45.8831,
+      "lng": 6.3258,
+      "country": "France",
+      "altitude": 650,
+      "nearResort": "La Clusaz + Le Grand-Bornand",
+      "buyRating": 4,
+      "desc": "Working market town of ~6,600, capital of reblochon and crossroads of the Aravis, roughly midway between Annecy and the ski resorts. Year-round local life, apartments around €3,600-5,700/m2 — far cheaper than La Clusaz or Le Grand-Bornand, both ~20 minutes away by road or bus.",
+      "propertyLinks": [
+        {
+          "label": "Green Acres listings",
+          "url": "https://www.green-acres.fr/property-for-sale/thones"
+        },
+        {
+          "label": "LeBonCoin search",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Thones_74230"
+        }
+      ]
+    },
+    {
+      "name": "Tignes Les Brévières",
+      "lat": 45.5077,
+      "lng": 6.9206,
+      "country": "France",
+      "altitude": 1550,
+      "nearResort": "Tignes / Val d'Isère",
+      "buyRating": 4,
+      "desc": "The most traditional of Tignes' villages, tucked below the Chevril dam at 1,550m. Old stone chalets, quiet lanes and an 8-seater gondola straight into the 300km domain — noticeably cheaper than Tignes le Lac.",
+      "propertyLinks": [
+        {
+          "label": "Properstar listings",
+          "url": "https://www.properstar.com/france/tignes/buy"
+        },
+        {
+          "label": "LeBonCoin Tignes",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Tignes_73320"
+        },
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/tignes"
+        }
+      ]
+    },
+    {
+      "name": "Valtournenche",
+      "lat": 45.8695,
+      "lng": 7.6225,
+      "country": "Italy",
+      "altitude": 1524,
+      "nearResort": "Breuil-Cervinia",
+      "buyRating": 5,
+      "desc": "Traditional Valdotain stone houses. Brengaz & Maen hamlets. Direct lift access to Cervinia-Zermatt 360km domain. Far cheaper than Cervinia.",
+      "propertyLinks": [
+        {
+          "label": "Immobiliare.it listings",
+          "url": "https://www.immobiliare.it/en/vendita-case/valtournenche/"
+        },
+        {
+          "label": "Idealista listings",
+          "url": "https://www.idealista.it/en/vendita-case/valtournenche-aosta/"
+        },
+        {
+          "label": "Luxury Estate",
+          "url": "https://www.luxuryestate.com/italy/aosta-valley/provincia-di-aosta/valtournenche"
+        }
+      ]
+    },
+    {
+      "name": "Venosc",
+      "lat": 45.003,
+      "lng": 6.12,
+      "country": "France",
+      "altitude": 960,
+      "nearResort": "Les Deux Alpes",
+      "buyRating": 5,
+      "desc": "THE TEMPLATE. Cobbled streets, artisans, gondola 7 min to Les 2 Alpes. Fraction of resort prices. Stone chalets, Ecrins National Park at doorstep.",
+      "propertyLinks": [
+        {
+          "label": "Properstar listings",
+          "url": "https://www.properstar.com/france/venosc/buy?c=en"
+        },
+        {
+          "label": "Kyero listings",
+          "url": "https://www.kyero.com/en/v%C3%A9nosc-property-for-sale-0l110122"
+        },
+        {
+          "label": "Green Acres",
+          "url": "https://www.green-acres.fr/property-for-sale/venosc"
+        }
+      ]
+    },
+    {
+      "name": "Villard-Reculas",
+      "lat": 45.0941,
+      "lng": 6.0313,
+      "country": "France",
+      "altitude": 1500,
+      "nearResort": "Alpe d'Huez",
+      "buyRating": 4,
+      "desc": "Tiny hamlet, linked to Alpe d'Huez Grand Domaine by Le Villarais lift. Stone & wood chalets, no crowds, never more than 300m from a lift.",
+      "propertyLinks": [
+        {
+          "label": "Search LeBonCoin",
+          "url": "https://www.leboncoin.fr/recherche?category=9&locations=Villard-Reculas_38114"
+        }
+      ]
+    }
+  ]
 };
 
-const map = L.map('map', {
-  center: [45.2, 6.8],
-  zoom: 8,
-  layers: [tiles.street],
-  zoomControl: true
+/* ---------- helpers ---------- */
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function flagFor(country) { return country === 'France' ? '🇫🇷' : '🇮🇹'; }
+function starsHTML(n) { return '★'.repeat(n) + '☆'.repeat(5 - n); }
+// strip diacritics so "meribel" finds "Méribel" and "chatel" finds "Châtel"
+function fold(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+function linksHTML(links, cls, icon) {
+  return links.map(function (l) {
+    return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener noreferrer" class="popup-link ' + cls + '">' +
+      '<span class="link-icon" aria-hidden="true">' + icon + '</span> ' + esc(l.label) + '</a>';
+  }).join('');
+}
+
+/* ---------- items ---------- */
+const items = [];
+DATA.resorts.forEach(function (r) { items.push(Object.assign({ kind: 'resort' }, r)); });
+DATA.villages.forEach(function (v) { items.push(Object.assign({ kind: 'village' }, v)); });
+items.forEach(function (it) {
+  it.haystack = fold([it.name, it.country, it.desc, it.nearResort || ''].join(' '));
 });
 
+function popupHTML(it) {
+  if (it.kind === 'resort') {
+    const piste = it.pistes > 0
+      ? '<div class="stat"><span class="stat-val">' + it.pistes + ' km</span><span class="stat-label">Pistes</span></div>'
+      : '<div class="stat"><span class="stat-val">Off-piste</span><span class="stat-label">Only</span></div>';
+    return '<div class="popup-header resort">' +
+        '<div class="popup-type">⛷️ Ski Resort</div>' +
+        '<div class="popup-name">' + esc(it.name) + '</div>' +
+        '<div class="popup-country">' + flagFor(it.country) + ' ' + esc(it.country) + '</div>' +
+      '</div><div class="popup-body"><div class="popup-stats">' + piste +
+        '<div class="stat"><span class="stat-val">' + it.altMax + ' m</span><span class="stat-label">Max alt.</span></div>' +
+        '<div class="stat"><span class="stat-val">' + (it.altMax - it.altMin) + ' m</span><span class="stat-label">Vertical</span></div>' +
+      '</div><div class="popup-desc">' + esc(it.desc) + '</div>' +
+      '<div class="popup-links">' + linksHTML(it.links, '', '🔗') + '</div></div>';
+  }
+  return '<div class="popup-header village">' +
+      '<div class="popup-type">🏡 Investment Village</div>' +
+      '<div class="popup-name">' + esc(it.name) + '</div>' +
+      '<div class="popup-country">' + flagFor(it.country) + ' ' + esc(it.country) + '</div>' +
+    '</div><div class="popup-body"><div class="popup-stats">' +
+      '<div class="stat"><span class="stat-val">' + it.altitude + ' m</span><span class="stat-label">Altitude</span></div>' +
+      '<div class="stat"><span class="stat-val rating-stars">' + starsHTML(it.buyRating) + '</span><span class="stat-label">Buy rating</span></div>' +
+      '<div class="stat"><span class="stat-val" style="font-size:0.72rem">' + esc(it.nearResort) + '</span><span class="stat-label">Near resort</span></div>' +
+    '</div><div class="popup-desc">' + esc(it.desc) + '</div>' +
+    '<div class="links-label">🏠 Property listings</div>' +
+    '<div class="popup-links">' + linksHTML(it.propertyLinks, 'property', '🏠') + '</div></div>';
+}
+
+function iconFor(it) {
+  const glyph = it.kind === 'resort' ? '⛷️' : '🏡';
+  const size = it.kind === 'resort' ? 28 : 26;
+  return L.divIcon({
+    className: '',
+    html: '<div class="pin-wrap"><div class="pin-main ' + it.kind + '">' + glyph + '</div>' +
+          '<div class="pin-flag">' + flagFor(it.country) + '</div></div>',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -(size / 2 + 2)]
+  });
+}
+
+/* ---------- map ---------- */
+const tiles = {
+  // CARTO's free voyager tiles now return an "API KEY REQUIRED" watermark rather than an
+  // error, so they look healthy to a status check while being unusable. Esri serves the
+  // other two styles here without a key, so street uses the same provider.
+  street: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri World Street Map', maxZoom: 19
+  }),
+  terrain: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri World Topo Map', maxZoom: 19
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri World Imagery', maxZoom: 19
+  })
+};
 let currentTile = 'street';
 
-function resortIcon(country) {
-  return L.divIcon({
-    className: '',
-    html: '<div style="width:28px;height:28px;border-radius:50%;background:#2563eb;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1;">\u26f7\ufe0f<\/div>',
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16]
-  });
-}
+const map = L.map('map', { center: [45.4, 7.4], zoom: 7, layers: [tiles.street], zoomControl: true });
 
-function villageIcon() {
-  return L.divIcon({
-    className: '',
-    html: '<div style="width:26px;height:26px;border-radius:50%;background:#16a34a;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;">\ud83c\udfe1<\/div>',
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-    popupAnchor: [0, -15]
-  });
-}
+// markercluster is a CDN dependency; degrade to a plain layer group if it fails to load
+const clustered = typeof L.markerClusterGroup === 'function';
+const markerLayer = clustered
+  ? L.markerClusterGroup({ maxClusterRadius: 45, spiderfyOnMaxZoom: true, showCoverageOnHover: false, disableClusteringAtZoom: 12 })
+  : L.layerGroup();
+markerLayer.addTo(map);
 
-function starsHTML(n) {
-  return '\u2605'.repeat(n) + '\u2606'.repeat(5 - n);
-}
-
-function buildResortPopup(r) {
-  const linksHTML = r.links.map(l =>
-    '<a href="' + l.url + '" target="_blank" class="popup-link"><span class="link-icon">\ud83d\udd17<\/span> ' + l.label + '<\/a>'
-  ).join('');
-  const pisteStat = r.pistes > 0
-    ? '<div class="stat"><span class="stat-val">' + r.pistes + ' km<\/span><span class="stat-label">Pistes<\/span><\/div>'
-    : '<div class="stat"><span class="stat-val">Off-piste<\/span><span class="stat-label">Only<\/span><\/div>';
-  const flag = r.country === 'France' ? '\ud83c\uddeb\ud83c\uddf7' : '\ud83c\uddee\ud83c\uddf9';
-  return '<div class="popup-header"><div class="popup-type resort">\u26f7\ufe0f Ski Resort<\/div><div class="popup-name">' + r.name + '<\/div><div class="popup-country">' + flag + ' ' + r.country + '<\/div><\/div><div class="popup-body"><div class="popup-stats">' + pisteStat + '<div class="stat"><span class="stat-val">' + r.altMax + 'm<\/span><span class="stat-label">Max alt.<\/span><\/div><div class="stat"><span class="stat-val">' + (r.altMax - r.altMin) + 'm<\/span><span class="stat-label">Vertical<\/span><\/div><\/div><div class="popup-desc">' + r.desc + '<\/div><div class="popup-links">' + linksHTML + '<\/div><\/div>';
-}
-
-function buildVillagePopup(v) {
-  const linksHTML = v.propertyLinks.map(l =>
-    '<a href="' + l.url + '" target="_blank" class="popup-link property"><span class="link-icon">\ud83c\udfe0<\/span> ' + l.label + '<\/a>'
-  ).join('');
-  const flag = v.country === 'France' ? '\ud83c\uddeb\ud83c\uddf7' : '\ud83c\uddee\ud83c\uddf9';
-  return '<div class="popup-header"><div class="popup-type village">\ud83c\udfe1 Investment Village<\/div><div class="popup-name">' + v.name + '<\/div><div class="popup-country">' + flag + ' ' + v.country + '<\/div><\/div><div class="popup-body"><div class="popup-stats"><div class="stat"><span class="stat-val">' + v.altitude + 'm<\/span><span class="stat-label">Altitude<\/span><\/div><div class="stat"><span class="stat-val rating-stars">' + starsHTML(v.buyRating) + '<\/span><span class="stat-label">Buy rating<\/span><\/div><div class="stat"><span class="stat-val" style="font-size:0.75rem;">' + v.nearResort + '<\/span><span class="stat-label">Near resort<\/span><\/div><\/div><div class="popup-desc">' + v.desc + '<\/div><div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:var(--pine);margin-bottom:6px;">\ud83c\udfe0 Property listings<\/div><div class="popup-links">' + linksHTML + '<\/div><\/div>';
-}
-
-const resortMarkers = [];
-const villageMarkers = [];
-let showResorts = true;
-let showVillages = true;
-let currentCountry = 'all';
-
-const resortLayer = L.layerGroup().addTo(map);
-const villageLayer = L.layerGroup().addTo(map);
-
-RESORTS.forEach(function(r) {
-  const m = L.marker([r.lat, r.lng], { icon: resortIcon(r.country) })
-    .bindPopup(buildResortPopup(r), { maxWidth: 320 });
-  m._data = r;
-  resortMarkers.push(m);
-  resortLayer.addLayer(m);
+items.forEach(function (it) {
+  it.marker = L.marker([it.lat, it.lng], { icon: iconFor(it), title: it.name, alt: it.name })
+    .bindPopup(popupHTML(it), { maxWidth: 320, autoPanPadding: [30, 30] });
+  it.marker.on('popupopen', function () { setActive(it); });
 });
 
-VILLAGES.forEach(function(v) {
-  const m = L.marker([v.lat, v.lng], { icon: villageIcon() })
-    .bindPopup(buildVillagePopup(v), { maxWidth: 320 });
-  m._data = v;
-  villageMarkers.push(m);
-  villageLayer.addLayer(m);
+const allBounds = L.latLngBounds(items.map(function (it) { return [it.lat, it.lng]; }));
+map.fitBounds(allBounds, { padding: [40, 40] });
+
+/* ---------- state ---------- */
+const state = { q: '', resorts: true, villages: true, country: 'all' };
+let activeItem = null;
+
+function matches(it) {
+  if (it.kind === 'resort' && !state.resorts) return false;
+  if (it.kind === 'village' && !state.villages) return false;
+  if (state.country !== 'all' && it.country !== state.country) return false;
+  if (state.q && it.haystack.indexOf(state.q) === -1) return false;
+  return true;
+}
+
+const listEl = document.getElementById('resultList');
+const countEl = document.getElementById('visibleCount');
+const headerCountEl = document.getElementById('headerCount');
+
+function resultHTML(it, idx) {
+  const meta = it.kind === 'resort'
+    ? (it.pistes > 0 ? it.pistes + ' km pistes' : 'Off-piste') + ' · ' + it.altMin + '–' + it.altMax + ' m'
+    : it.altitude + ' m · <span class="stars">' + starsHTML(it.buyRating) + '</span> · ' + esc(it.nearResort);
+  return '<button class="result" type="button" data-idx="' + idx + '">' +
+      '<span class="pin ' + it.kind + '" aria-hidden="true">' + (it.kind === 'resort' ? '⛷️' : '🏡') + '</span>' +
+      '<span class="body"><span class="name">' + esc(it.name) +
+        '<span class="flag" aria-hidden="true">' + flagFor(it.country) + '</span></span>' +
+        '<span class="meta">' + meta + '</span></span>' +
+    '</button>';
+}
+
+function render() {
+  const visible = items.filter(matches);
+
+  const markers = visible.map(function (it) { return it.marker; });
+  markerLayer.clearLayers();
+  if (markerLayer.addLayers) markerLayer.addLayers(markers);
+  else markers.forEach(function (m) { markerLayer.addLayer(m); });
+
+  const nR = visible.filter(function (it) { return it.kind === 'resort'; }).length;
+  const nV = visible.length - nR;
+  countEl.innerHTML = '<strong>' + nR + '</strong> resorts · <strong>' + nV + '</strong> villages';
+  headerCountEl.innerHTML = '<strong>' + items.length + '</strong> places mapped';
+
+  if (!visible.length) {
+    listEl.innerHTML = '<div class="empty-state"><strong>Nothing matches</strong>' +
+      'Try a different search, or widen the country and type filters.</div>';
+    return;
+  }
+  let html = '';
+  const resorts = visible.filter(function (it) { return it.kind === 'resort'; });
+  const villages = visible.filter(function (it) { return it.kind === 'village'; });
+  if (resorts.length) {
+    html += '<div class="group-head">Ski resorts · ' + resorts.length + '</div>';
+    html += resorts.map(function (it) { return resultHTML(it, items.indexOf(it)); }).join('');
+  }
+  if (villages.length) {
+    html += '<div class="group-head">Investment villages · ' + villages.length + '</div>';
+    html += villages.map(function (it) { return resultHTML(it, items.indexOf(it)); }).join('');
+  }
+  listEl.innerHTML = html;
+  // clearLayers() rebuilt the marker DOM, so re-apply the highlight if it is still visible
+  if (activeItem) {
+    markActive(activeItem);
+    if (activeItem.marker._icon) activeItem.marker._icon.classList.add('is-highlighted');
+  }
+}
+
+function markActive(it) {
+  const idx = items.indexOf(it);
+  listEl.querySelectorAll('.result').forEach(function (el) {
+    el.classList.toggle('is-active', Number(el.dataset.idx) === idx);
+  });
+}
+function setActive(it) {
+  if (activeItem && activeItem.marker._icon) activeItem.marker._icon.classList.remove('is-highlighted');
+  activeItem = it;
+  if (it.marker._icon) it.marker._icon.classList.add('is-highlighted');
+  markActive(it);
+}
+
+// UNCLUSTERED_ZOOM matches disableClusteringAtZoom, so at this zoom the marker is
+// guaranteed to be a real marker on the map and openPopup() always works.
+const UNCLUSTERED_ZOOM = 12;
+
+function focusItem(it) {
+  const finish = function () { setActive(it); it.marker.openPopup(); };
+  const target = L.latLng(it.lat, it.lng);
+  const zoom = Math.max(map.getZoom(), UNCLUSTERED_ZOOM);
+  // flyTo fires no moveend when nothing moves, so handle the already-there case directly
+  if (map.getZoom() === zoom && map.getCenter().distanceTo(target) < 1) {
+    finish();
+  } else {
+    map.once('moveend', finish);
+    map.flyTo(target, zoom, { duration: 0.6 });
+  }
+  if (window.matchMedia('(max-width: 900px)').matches) closeSidebar();
+}
+
+/* ---------- events ---------- */
+listEl.addEventListener('click', function (e) {
+  const btn = e.target.closest('.result');
+  if (btn) focusItem(items[Number(btn.dataset.idx)]);
 });
 
-function updateMarkers() {
-  resortLayer.clearLayers();
-  villageLayer.clearLayers();
-  let count = 0;
-  if (showResorts) {
-    resortMarkers.forEach(function(m) {
-      if (currentCountry === 'all' || m._data.country === currentCountry) {
-        resortLayer.addLayer(m);
-        count++;
-      }
-    });
+const searchEl = document.getElementById('search');
+const clearEl = document.getElementById('searchClear');
+searchEl.addEventListener('input', function () {
+  state.q = fold(searchEl.value.trim());
+  clearEl.classList.toggle('visible', searchEl.value.length > 0);
+  render();
+});
+searchEl.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') { searchEl.value = ''; searchEl.dispatchEvent(new Event('input')); }
+  if (e.key === 'Enter') {
+    const first = items.filter(matches)[0];
+    if (first) focusItem(first);
   }
-  if (showVillages) {
-    villageMarkers.forEach(function(m) {
-      if (currentCountry === 'all' || m._data.country === currentCountry) {
-        villageLayer.addLayer(m);
-        count++;
-      }
-    });
-  }
-  document.getElementById('visibleCount').textContent = count;
-}
+});
+clearEl.addEventListener('click', function () {
+  searchEl.value = '';
+  searchEl.dispatchEvent(new Event('input'));
+  searchEl.focus();
+});
 
-function toggleLayer(type, btn) {
-  if (type === 'resorts') showResorts = !showResorts;
-  if (type === 'villages') showVillages = !showVillages;
-  btn.classList.toggle('active');
-  btn.classList.toggle('inactive');
-  updateMarkers();
+function bindToggle(id, key) {
+  const el = document.getElementById(id);
+  el.addEventListener('click', function () {
+    state[key] = !state[key];
+    el.setAttribute('aria-pressed', String(state[key]));
+    render();
+  });
 }
+bindToggle('btnResorts', 'resorts');
+bindToggle('btnVillages', 'villages');
 
-function filterCountry(country, btn) {
-  currentCountry = country;
-  document.querySelectorAll('.country-btn').forEach(function(b) { b.classList.remove('active'); });
-  btn.classList.add('active');
-  updateMarkers();
-}
+document.getElementById('countryGroup').addEventListener('click', function (e) {
+  const btn = e.target.closest('.country-btn');
+  if (!btn) return;
+  state.country = btn.dataset.country;
+  this.querySelectorAll('.country-btn').forEach(function (b) {
+    b.setAttribute('aria-pressed', String(b === btn));
+  });
+  render();
+});
 
-function switchTile(style, btn) {
+document.getElementById('styleGroup').addEventListener('click', function (e) {
+  const btn = e.target.closest('.style-btn');
+  if (!btn) return;
+  const style = btn.dataset.style;
+  if (style === currentTile) return;
   map.removeLayer(tiles[currentTile]);
   map.addLayer(tiles[style]);
   currentTile = style;
-  document.querySelectorAll('.style-btn').forEach(function(b) { b.classList.remove('active'); });
-  btn.classList.add('active');
-}
+  this.querySelectorAll('.style-btn').forEach(function (b) {
+    b.setAttribute('aria-pressed', String(b === btn));
+  });
+});
 
-updateMarkers();
+document.getElementById('resetView').addEventListener('click', function () {
+  map.flyToBounds(allBounds, { padding: [40, 40], duration: 0.6 });
+});
+
+const sidebarEl = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebarToggle');
+function closeSidebar() {
+  sidebarEl.classList.remove('open');
+  sidebarToggle.setAttribute('aria-expanded', 'false');
+}
+sidebarToggle.addEventListener('click', function () {
+  const open = sidebarEl.classList.toggle('open');
+  sidebarToggle.setAttribute('aria-expanded', String(open));
+});
+
+render();
 </script>
 </body>
 </html>
