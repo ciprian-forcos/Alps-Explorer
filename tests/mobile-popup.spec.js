@@ -577,6 +577,42 @@ async function openDrawer(page) {
     });
     check('mobile filters reachable without the drawer, strip stays compact', filters.pass, filters.reason);
 
+    // ---- 7a-bis. controls parked off the fold must advertise themselves ----
+    // Live check 2026-09-01 at 390x844: Street/Terrain/Satellite sat 199px past
+    // the right edge with the scrollbar hidden and the last chip ending flush,
+    // so nothing said the strip scrolled. Same trap as the old "List" button.
+    const cue = await page.evaluate(() => {
+      const el = document.querySelector('.controls');
+      if (!el) return { pass: false, reason: 'no .controls strip' };
+      // an earlier check scrolled this strip; measure the at-rest state
+      el.scrollLeft = 0;
+      el.dispatchEvent(new Event('scroll'));
+      const cr = el.getBoundingClientRect();
+      const offscreen = [...el.querySelectorAll('button')].filter(function (b) {
+        const q = b.getBoundingClientRect();
+        if (q.width === 0) return false;
+        const visW = Math.max(0, Math.min(q.right, cr.right) - Math.max(q.left, cr.left));
+        return visW / q.width < 0.5;
+      }).map(function (b) { return b.textContent.trim().slice(0, 12); });
+      const hidden = el.scrollWidth - el.clientWidth;
+      const after = getComputedStyle(el, '::after');
+      const fade = after.content !== 'none' && /gradient/.test(after.backgroundImage || '');
+      const cued = el.classList.contains('scroll-more') && fade;
+      // scrolled to the far end there is nothing left to promise, so the cue goes
+      el.scrollLeft = el.scrollWidth;
+      el.dispatchEvent(new Event('scroll'));
+      const cueAtEnd = el.classList.contains('scroll-more');
+      el.scrollLeft = 0;
+      el.dispatchEvent(new Event('scroll'));
+      return {
+        pass: hidden <= 4 ? !cued : (cued && !cueAtEnd),
+        reason: 'hidden=' + hidden + 'px offscreen=' + (offscreen.join(',') || 'none') +
+          ' cueAtRest=' + cued + ' cueAtEnd=' + cueAtEnd +
+          ' fade=' + (after.backgroundImage || 'none').slice(0, 44)
+      };
+    });
+    check('off-fold strip controls come with a scroll cue', cue.pass, cue.reason);
+
     // ---- 7a. header / List toggle stay inside the visual viewport ----
     const chromeOnScreen = await page.evaluate(() => {
       const header = document.querySelector('header');

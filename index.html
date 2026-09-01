@@ -455,6 +455,21 @@ header #sidebarToggle:hover {
     padding: 6px 10px;
   }
   .controls::-webkit-scrollbar { display: none; }
+  /* The strip scrolls sideways, but the scrollbar is hidden and at 390px the
+     last chip ends flush with the edge — so Street/Terrain/Satellite sat off
+     screen with nothing to say they existed. That is the trap the old "List"
+     button fell into. Fade the trailing edge while there is more to reach. */
+  .controls.scroll-more::after {
+    content: '';
+    position: sticky;
+    right: -10px;
+    flex: 0 0 46px;
+    margin-left: -46px;
+    margin-right: -10px;
+    align-self: stretch;
+    pointer-events: none;
+    background: linear-gradient(to right, rgba(232,226,213,0) 0%, var(--parchment) 72%);
+  }
   .controls-label { display: none; }
   .controls .toggle-group, .controls .map-style-group { flex-wrap: nowrap; flex-shrink: 0; gap: 6px; }
   .controls .sep { flex: 0 0 1px; }
@@ -2637,6 +2652,22 @@ searchEl.addEventListener('blur', function () { setTimeout(setAppHeight, 60); })
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', setAppHeight);
 }
+
+// Mark the filter strip while it still has content to the right of the fold,
+// so the trailing fade only shows when there is something to scroll to.
+const controlsEl = document.querySelector('.controls');
+function updateStripScrollCue() {
+  if (!controlsEl) return;
+  const more = controlsEl.scrollWidth - controlsEl.clientWidth - controlsEl.scrollLeft;
+  controlsEl.classList.toggle('scroll-more', more > 4);
+}
+if (controlsEl) {
+  controlsEl.addEventListener('scroll', updateStripScrollCue, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(updateStripScrollCue).observe(controlsEl);
+}
+window.addEventListener('resize', updateStripScrollCue);
+window.addEventListener('orientationchange', function () { setTimeout(updateStripScrollCue, 120); });
+updateStripScrollCue();
 
 window.addEventListener('resize', relayoutMap);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', relayoutMap);
