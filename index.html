@@ -32,7 +32,17 @@
   --shadow-lg: 0 12px 40px rgba(26,26,46,0.18);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; height: 100dvh; max-height: 100dvh; }
+/* --app-h is the real visible viewport height, set from JS. iOS Safari's vh/dvh
+   can resolve taller than what the user can actually see, which left the page
+   background exposed as a band under the map. */
+html, body {
+  height: 100%;
+  height: 100dvh;
+  height: var(--app-h, 100dvh);
+  max-height: var(--app-h, 100dvh);
+  overflow: hidden;
+}
+html { background: var(--snow); }
 body {
   font-family: 'DM Sans', system-ui, sans-serif;
   background: var(--ink);
@@ -288,10 +298,19 @@ header .subtitle {
   font-size: 0.75rem;
   backdrop-filter: blur(6px);
 }
-.legend h3 {
+.legend-toggle {
+  font-family: inherit;
   font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.13em;
-  color: var(--mist); margin-bottom: 8px; font-weight: 700;
+  color: var(--mist); font-weight: 700;
+  background: none; border: 0; padding: 0; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  width: 100%; margin-bottom: 8px;
 }
+.legend-toggle:hover { color: var(--slate); }
+.legend-caret { font-size: 0.5rem; transition: transform 0.15s; }
+.legend.collapsed .legend-body { display: none; }
+.legend.collapsed .legend-toggle { margin-bottom: 0; }
+.legend.collapsed .legend-caret { transform: rotate(180deg); }
 .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; color: var(--slate); }
 .legend-dot { width: 11px; height: 11px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(255,255,255,0.9); }
 .legend-sep { border: 0; border-top: 1px solid var(--line); margin: 9px 0 8px; }
@@ -325,21 +344,6 @@ header #sidebarToggle:hover {
   font-size: 0.72rem;
   padding: 5px 10px;
 }
-.map-basemap {
-  display: none;
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 900;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 4px;
-  gap: 3px;
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(6px);
-}
-.map-basemap .style-btn { padding: 4px 9px; font-size: 0.7rem; }
 
 /* ---------- markers ---------- */
 .pin-wrap { position: relative; }
@@ -434,10 +438,25 @@ header #sidebarToggle:hover {
   header .subtitle, .header-count { display: none; }
   .search-wrap { flex: 1 1 auto; min-width: 0; max-width: none; }
   #search { height: 30px; font-size: 16px; padding: 0 28px 0 32px; }
-  .controls { display: none; }
+  /* one horizontally scrollable strip: type, country and basemap all stay
+     reachable without opening the drawer */
+  .controls {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    gap: 6px;
+    padding: 6px 10px;
+  }
+  .controls::-webkit-scrollbar { display: none; }
+  .controls-label { display: none; }
+  .controls .toggle-group, .controls .map-style-group { flex-wrap: nowrap; flex-shrink: 0; gap: 6px; }
+  .controls .sep { flex: 0 0 1px; }
+  .controls .spacer { flex: 0 0 1px; width: 1px; height: 20px; background: var(--line); }
+  .controls .toggle-btn, .controls .country-btn { font-size: 0.72rem; padding: 5px 10px; }
+  .controls .style-btn { font-size: 0.7rem; padding: 5px 9px; }
   header #sidebarToggle { display: inline-flex; }
   .drawer-filters { display: flex; }
-  .map-basemap { display: flex; }
   .stage, #map { flex: 1 1 auto; min-height: 0; }
   #sidebar {
     position: absolute; inset: 0 auto 0 0;
@@ -536,21 +555,20 @@ header #sidebarToggle:hover {
     <div id="resultList"></div>
   </aside>
   <div id="map" role="application" aria-label="Map of Alpine ski resorts and villages"></div>
-  <div class="map-basemap" id="styleGroupMobile" role="group" aria-label="Map style">
-    <button class="style-btn" type="button" data-style="street" aria-pressed="false">Street</button>
-    <button class="style-btn" type="button" data-style="terrain" aria-pressed="true">Terrain</button>
-    <button class="style-btn" type="button" data-style="satellite" aria-pressed="false">Satellite</button>
-  </div>
   <div class="map-overlay">
     <span class="count-text" id="visibleCount" aria-live="polite"></span>
     <button class="ghost-btn" id="resetView" type="button">Reset view</button>
   </div>
-  <div class="legend">
-    <h3>Legend</h3>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--glacier)"></span> Ski resort</div>
-    <div class="legend-item"><span class="legend-dot" style="background:var(--pine)"></span> Village (buy here)</div>
-    <hr class="legend-sep" />
-    <div class="legend-note">Flag badge shows the country.<br />Numbered circles group nearby pins &mdash; click to expand.</div>
+  <div class="legend" id="legend">
+    <button class="legend-toggle" id="legendToggle" type="button" aria-expanded="true" aria-controls="legendBody">
+      <span>Legend</span><span class="legend-caret" aria-hidden="true">&#9650;</span>
+    </button>
+    <div class="legend-body" id="legendBody">
+      <div class="legend-item"><span class="legend-dot" style="background:var(--glacier)"></span> Ski resort</div>
+      <div class="legend-item"><span class="legend-dot" style="background:var(--pine)"></span> Village (buy here)</div>
+      <hr class="legend-sep" />
+      <div class="legend-note">Flag badge shows the country.<br />Numbered circles group nearby pins &mdash; click to expand.</div>
+    </div>
   </div>
 </div>
 
@@ -2555,7 +2573,21 @@ function onStyleClick(e) {
   if (btn) setTile(btn.dataset.style);
 }
 document.getElementById('styleGroup').addEventListener('click', onStyleClick);
-document.getElementById('styleGroupMobile').addEventListener('click', onStyleClick);
+
+const legendEl = document.getElementById('legend');
+const legendToggle = document.getElementById('legendToggle');
+function storedLegendState() {
+  try { return localStorage.getItem('alps.legend'); } catch (_) { return null; }
+}
+if (storedLegendState() === 'collapsed') {
+  legendEl.classList.add('collapsed');
+  legendToggle.setAttribute('aria-expanded', 'false');
+}
+legendToggle.addEventListener('click', function () {
+  const collapsed = legendEl.classList.toggle('collapsed');
+  legendToggle.setAttribute('aria-expanded', String(!collapsed));
+  try { localStorage.setItem('alps.legend', collapsed ? 'collapsed' : 'open'); } catch (_) { /* private mode */ }
+});
 
 document.getElementById('resetView').addEventListener('click', function () {
   map.flyToBounds(allBounds, { padding: [40, 40], duration: 0.6 });
@@ -2580,6 +2612,27 @@ sidebarToggle.addEventListener('click', function () {
   sidebarToggle.setAttribute('aria-expanded', String(open));
   requestAnimationFrame(relayoutMap);
 });
+
+// Pin the app to the height the user can actually see. iOS Safari reports a
+// dvh that can outrun the visible area, which pushed the header off-screen and
+// left a band of page background under the map.
+function setAppHeight() {
+  // An open soft keyboard shrinks the visual viewport; keep the layout put
+  // while a field is focused so the map does not collapse under the keyboard.
+  const active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+  const vv = window.visualViewport;
+  const h = Math.round(vv ? vv.height : window.innerHeight);
+  if (h > 0) document.documentElement.style.setProperty('--app-h', h + 'px');
+}
+setAppHeight();
+window.addEventListener('resize', setAppHeight);
+window.addEventListener('orientationchange', function () { setTimeout(setAppHeight, 120); });
+searchEl.addEventListener('blur', function () { setTimeout(setAppHeight, 60); });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', setAppHeight);
+  window.visualViewport.addEventListener('scroll', setAppHeight);
+}
 
 window.addEventListener('resize', relayoutMap);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', relayoutMap);

@@ -293,7 +293,7 @@ function findFairPair() {
 
 async function secondPinScenarios(page, wanted) {
   const out = [];
-  const stats = { centres: 0, pairs: 0, exposed: 0 };
+  const stats = { centres: 0, pairs: 0, exposed: 0, driftedOut: 0, tapMissed: 0, shieldExpired: 0 };
   // earlier checks leave a search term and an open drawer behind; both would
   // starve this scan (a filtered render puts almost no pins on the map)
   await page.evaluate(() => {
@@ -306,6 +306,21 @@ async function secondPinScenarios(page, wanted) {
     state.country = 'all';
     render();
     map.closePopup();
+    window.__tapHit = null;
+    if (!window.__tapHitBound) {
+      window.__tapHitBound = true;
+      document.addEventListener('touchstart', function (e) {
+        const t = e.touches && e.touches[0];
+        if (!t) return;
+        const el = document.elementFromPoint(t.clientX, t.clientY);
+        const icon = el && el.closest && el.closest('.leaflet-marker-icon');
+        window.__tapHit = {
+          title: icon ? icon.getAttribute('title') : null,
+          shieldLeft: typeof suppressMapClickUntil === 'number'
+            ? suppressMapClickUntil - Date.now() : null
+        };
+      }, true);
+    }
   });
   await sleep(400);
   const total = await page.evaluate(() => items.length);
@@ -335,12 +350,30 @@ async function secondPinScenarios(page, wanted) {
       const cy = r.y + r.height / 2;
       const el = document.elementFromPoint(cx, cy);
       const hit = el && el.closest && el.closest('.leaflet-marker-icon');
-      return { cx: cx, cy: cy, exposed: !!(hit && hit.getAttribute('title') === n) };
+      return {
+        cx: cx, cy: cy,
+        exposed: !!(hit && hit.getAttribute('title') === n),
+        // same tappable band findFairPair used when it picked the pair; A's
+        // autoPan can slide B out of it, and a pin a few px off the viewport
+        // edge is not something a tap can reach
+        inBand: cx >= 70 && cx <= window.innerWidth - 70 &&
+                cy >= 140 && cy <= window.innerHeight - 260
+      };
     }, pair.b.name);
     // if B ended up under A's popup the user could not tap it either -- not a fair probe
     if (!bNow || !bNow.exposed) continue;
-    stats.exposed++;
+    if (!bNow.inBand) { stats.driftedOut++; continue; }
+    await page.evaluate(() => { window.__tapHit = null; });
     await realTap(page, bNow.cx, bNow.cy);
+    // Record what the touch actually landed on. A's popup autoPans the map, so
+    // between measuring B and dispatching the touch B can slide out from under
+    // the point -- that tests pan timing, not the shield. Score only the taps
+    // that really hit B while the shield was still up.
+    const tapHit = await page.evaluate(() => window.__tapHit);
+    if (!tapHit || tapHit.title !== pair.b.name) { stats.tapMissed++; continue; }
+    if (tapHit.shieldLeft === null) { stats.noShieldVar = true; continue; }
+    if (tapHit.shieldLeft <= 0) { stats.shieldExpired++; continue; }
+    stats.exposed++;
     await sleep(900);
     const got = await page.evaluate(() =>
       ((document.querySelector('.leaflet-popup .popup-name') || {}).textContent || '').trim());
@@ -374,7 +407,7 @@ async function tapEmptyMap(page) {
       if (el.closest('.leaflet-control')) continue;
       if (el.closest('button, a, input')) continue;
       if (el.closest('#sidebar')) continue;
-      if (el.closest('.map-overlay, .map-basemap, header')) continue;
+      if (el.closest('.map-overlay, .controls, header')) continue;
       if (!el.closest('#map')) continue;
       return { x: x, y: y };
     }
@@ -466,6 +499,9 @@ async function openDrawer(page) {
       deviceScaleFactor: 2
     });
     const page = await mobile.newPage();
+    const jsErrors = [];
+    page.on('pageerror', (err) => jsErrors.push(String(err && err.message || err)));
+    page.on('console', (msg) => { if (msg.type() === 'error') jsErrors.push('console: ' + msg.text()); });
     page.setDefaultTimeout(20000);
     await page.goto(origin + '/', { waitUntil: 'load', timeout: 60000 });
     await waitForMap(page);
@@ -504,23 +540,65 @@ async function openDrawer(page) {
         ' vs viewport ' + mapFrac.innerW + 'x' + mapFrac.innerH
     );
 
-    // ---- 7. mobile filter bar does not consume a large strip ----
+    // ---- 7. mobile filters are reachable without opening the drawer ----
+    // Tester feedback 2026-09-01: with the strip hidden, the only route to the
+    // filters was the header button labelled "List", and nobody found it.
     const filters = await page.evaluate(() => {
       const el = document.querySelector('.controls');
-      if (!el) return { pass: true, reason: 'absent from document' };
+      if (!el) return { pass: false, reason: 'no .controls strip in the document' };
       const cs = getComputedStyle(el);
-      const inDrawer = !!el.closest('#sidebar');
-      const outOfFlow = cs.position === 'absolute' || cs.position === 'fixed' || cs.position === 'sticky';
-      const hidden = cs.display === 'none' || cs.visibility === 'hidden';
+      const drawerOpen = document.getElementById('sidebar').classList.contains('open');
       const h = el.getBoundingClientRect().height;
-      const pass = hidden || h < 8 || outOfFlow || inDrawer;
+      const wanted = ['[data-filter="resorts"]', '[data-filter="villages"]',
+                      '[data-country="all"]', '[data-country="France"]', '[data-country="Italy"]',
+                      '[data-style="street"]', '[data-style="terrain"]', '[data-style="satellite"]'];
+      const missing = [];
+      wanted.forEach(function (sel) {
+        const b = el.querySelector(sel);
+        if (!b) { missing.push(sel + ':absent'); return; }
+        // scroll it into the strip's visible range, then hit-test its centre
+        b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        const r = b.getBoundingClientRect();
+        if (r.width < 24 || r.height < 24) { missing.push(sel + ':too-small'); return; }
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        if (!hit || !el.contains(hit)) missing.push(sel + ':covered');
+      });
+      const visible = cs.display !== 'none' && cs.visibility !== 'hidden' && h >= 8;
+      const compact = h <= window.innerHeight * 0.12;
       return {
-        pass,
-        reason: 'display=' + cs.display + ' pos=' + cs.position + ' height=' + Math.round(h) +
-          (inDrawer ? ' in-drawer' : ' in-flow')
+        pass: visible && compact && !drawerOpen && missing.length === 0,
+        reason: 'display=' + cs.display + ' height=' + Math.round(h) +
+          ' (' + (h / window.innerHeight * 100).toFixed(1) + '% of viewport)' +
+          ' drawerOpen=' + drawerOpen +
+          (missing.length ? ' unreachable=' + missing.join(',') : ' all 8 controls hit-testable')
       };
     });
-    check('mobile filter bar does not consume a large strip', filters.pass, filters.reason);
+    check('mobile filters reachable without the drawer, strip stays compact', filters.pass, filters.reason);
+
+    // ---- 7b. app box matches the visible viewport, no page background exposed ----
+    // Tester feedback 2026-09-01: "o mare bara albastra jos" — the --ink page
+    // background showing below the map because the app box outran the viewport.
+    const measureFit = () => page.evaluate(() => {
+      const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const appH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-h'));
+      const bodyH = document.body.getBoundingClientRect().height;
+      const stageBottom = document.querySelector('.stage').getBoundingClientRect().bottom;
+      const htmlBg = getComputedStyle(document.documentElement).backgroundColor;
+      const varSet = Number.isFinite(appH) && Math.abs(appH - vh) <= 1;
+      const bodyFits = Math.abs(bodyH - vh) <= 1;
+      const noGap = Math.abs(stageBottom - vh) <= 1;
+      // second line of defence: if anything ever does peek through, it must not
+      // be the dark --ink page background the tester saw as a blue band
+      const bgNotInk = htmlBg.replace(/\s/g, '') !== 'rgb(26,26,46)';
+      return {
+        pass: varSet && bodyFits && noGap && bgNotInk,
+        reason: '--app-h=' + (Number.isFinite(appH) ? appH : 'unset') + ' visualViewport=' + Math.round(vh) +
+          ' body=' + Math.round(bodyH) + ' stageBottom=' + Math.round(stageBottom) +
+          ' htmlBg=' + htmlBg
+      };
+    });
+    const fit = await measureFit();
+    check('app box equals the visible viewport (no background band)', fit.pass, fit.reason);
 
     // ---- 8. default basemap is Terrain ----
     const terrain = await page.evaluate(() => {
@@ -695,6 +773,9 @@ async function openDrawer(page) {
       check('tapping a second pin during the shield window opens its popup', false,
         'inconclusive - no fair two-pin scenario (centres=' + second.stats.centres +
           ' pairs=' + second.stats.pairs + ' exposed=' + second.stats.exposed +
+          ' driftedOut=' + second.stats.driftedOut +
+          ' tapMissed=' + second.stats.tapMissed +
+          ' shieldExpired=' + second.stats.shieldExpired +
           ' lastBoxes=' + second.stats.lastBoxes + ' lastIcons=' + second.stats.lastIcons + ')');
     } else {
       check(
@@ -730,6 +811,68 @@ async function openDrawer(page) {
       };
     });
     check('desktop 1440x900 still shows filter controls', deskFilters.pass, deskFilters.reason);
+
+    // ---- 11. desktop legend can be dismissed and stays dismissed ----
+    const legend = await desk.evaluate(async () => {
+      const el = document.getElementById('legend');
+      const btn = document.getElementById('legendToggle');
+      if (!el || !btn) return { pass: false, reason: 'legend or toggle missing' };
+      const openH = el.getBoundingClientRect().height;
+      btn.click();
+      await new Promise((r) => setTimeout(r, 250));
+      const closedH = el.getBoundingClientRect().height;
+      let stored = null;
+      try { stored = localStorage.getItem('alps.legend'); } catch (_) {}
+      const bodyHidden = getComputedStyle(document.getElementById('legendBody')).display === 'none';
+      btn.click();
+      return {
+        pass: bodyHidden && closedH < openH - 20 && stored === 'collapsed',
+        reason: 'open=' + Math.round(openH) + 'px collapsed=' + Math.round(closedH) +
+          'px bodyHidden=' + bodyHidden + ' stored=' + stored
+      };
+    });
+    check('desktop legend collapses and the choice persists', legend.pass, legend.reason);
+
+    // ---- 11b. app height tracks a viewport change (JS sizing is live) ----
+    // The band only shows up on iOS, where dvh can outrun the visible area, so
+    // assert the JS sizing is live rather than a static dvh. Runs on its own
+    // page: resizing the shared mobile page would move the map under the
+    // popup checks above.
+    const probeCtx = await browser.newContext({
+      viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2
+    });
+    const probe = await probeCtx.newPage();
+    await probe.goto(origin + '/', { waitUntil: 'load', timeout: 60000 });
+    await waitForMap(probe);
+    const readAppH = () => probe.evaluate(() => {
+      const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const appH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-h'));
+      return {
+        appH: Number.isFinite(appH) ? appH : null,
+        vh: Math.round(vh),
+        bodyH: Math.round(document.body.getBoundingClientRect().height),
+        stageBottom: Math.round(document.querySelector('.stage').getBoundingClientRect().bottom)
+      };
+    });
+    const before = await readAppH();
+    await probe.setViewportSize({ width: 390, height: 640 });
+    await sleep(350);
+    const after = await readAppH();
+    await probeCtx.close();
+    check(
+      'app height tracks a viewport change (JS sizing is live)',
+      before.appH === 844 && after.appH === 640 &&
+        after.bodyH === 640 && after.stageBottom === 640,
+      '844 -> --app-h=' + before.appH + '; 640 -> --app-h=' + after.appH +
+        ' body=' + after.bodyH + ' stageBottom=' + after.stageBottom
+    );
+
+    // ---- 12. no JS errors on the mobile page ----
+    check(
+      'no JS/console errors on mobile load',
+      jsErrors.length === 0,
+      jsErrors.length ? jsErrors.slice(0, 3).join(' | ') : 'clean'
+    );
 
     await desktop.close();
     await mobile.close();
