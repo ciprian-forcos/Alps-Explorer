@@ -270,8 +270,19 @@ header .subtitle {
 }
 .result .name .flag { font-size: 0.75rem; }
 .result .meta {
+  /* Block-level and wrapping. As a bare inline <span> with white-space: nowrap
+     this line ran past the sidebar and was sliced mid-word at "rent €..." —
+     overflow/text-overflow do nothing on an inline box. One line is not wide
+     enough for pistes + altitude + buy + rent at a 336px sidebar, so wrap to
+     two rather than ellipsise the rent price away; the clamp keeps the row
+     height bounded if a name ever runs longer. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   font-size: 0.72rem; color: var(--mist); margin-top: 2px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  line-height: 1.35;
+  overflow: hidden; white-space: normal; overflow-wrap: anywhere;
 }
 .result .stars { color: var(--gold); letter-spacing: 0.5px; }
 .empty-state {

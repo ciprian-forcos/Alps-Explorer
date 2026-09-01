@@ -919,6 +919,41 @@ async function openDrawer(page) {
     });
     check('desktop legend collapses and the choice persists', legend.pass, legend.reason);
 
+    // ---- 11a. list rows must show the whole meta line, incl. the rent price ----
+    // The tester's "nu afiseaza toata informatia": every row was sliced
+    // mid-word at "rent €..." at the sidebar edge, so the rent figure was
+    // unreadable anywhere in the list. .meta already carried overflow and
+    // text-overflow, but as an inline <span> both are ignored. Assert the
+    // text is fully rendered inside the column, not merely ellipsised —
+    // an ellipsis would look tidy and still hide the price.
+    const listClip = await desk.evaluate(() => {
+      const sb = document.getElementById('sidebar');
+      if (!sb) return { pass: false, reason: '#sidebar missing' };
+      const sbr = sb.getBoundingClientRect();
+      const metas = [...sb.querySelectorAll('.result .meta')];
+      if (metas.length < 3) return { pass: false, reason: 'only ' + metas.length + ' result rows' };
+      const withRent = metas.filter((m) => m.textContent.indexOf('rent €') !== -1);
+      const pastSidebar = metas.filter((m) => m.getBoundingClientRect().right > sbr.right + 1);
+      // clientWidth is 0 on an inline box — that is the broken shape itself
+      const inline = metas.filter((m) => m.clientWidth === 0);
+      const truncated = metas.filter((m) =>
+        m.scrollWidth > m.clientWidth + 1 || m.scrollHeight > m.clientHeight + 1);
+      const sample = withRent[0] || metas[0];
+      const sr = sample.getBoundingClientRect();
+      return {
+        pass: pastSidebar.length === 0 && inline.length === 0 &&
+              truncated.length === 0 && withRent.length > 20,
+        reason: 'rows=' + metas.length + ' withRent=' + withRent.length +
+          ' pastSidebar=' + pastSidebar.length + ' inlineBoxes=' + inline.length +
+          ' truncated=' + truncated.length +
+          ' sidebarRight=' + Math.round(sbr.right) +
+          ' sampleRight=' + Math.round(sr.right) +
+          ' sample=' + sample.clientWidth + 'x' + sample.clientHeight +
+          '/' + sample.scrollWidth + 'x' + sample.scrollHeight
+      };
+    });
+    check('list rows show the full meta line including the rent price', listClip.pass, listClip.reason);
+
     // ---- 11b. app height tracks a viewport change (JS sizing is live) ----
     // The band only shows up on iOS, where dvh can outrun the visible area, so
     // assert the JS sizing is live rather than a static dvh. Runs on its own
