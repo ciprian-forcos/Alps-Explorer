@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<script>
+(function () {
+  var vv = window.visualViewport;
+  if (vv && Math.abs(vv.scale - 1) > 0.01) return;
+  var h = Math.floor(vv ? vv.height : window.innerHeight);
+  if (h > 0) document.documentElement.style.setProperty('--app-h', h + 'px');
+})();
+</script>
 <title>Alps Explorer — Ski Resorts &amp; Investment Villages</title>
 <meta name="description" content="Interactive map of 43 ski resorts and 33 investment villages across the French and Italian Alps, with piste stats, altitudes and property links." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='64'%20height='64'%20viewBox='0%200%2064%2064'%3E%3Crect%20width='64'%20height='64'%20rx='14'%20fill='%231a1a2e'/%3E%3Cpath%20d='M9%2049%2025%2019%2034%2035%2040%2025%2055%2049Z'%20fill='%23f5f3ee'/%3E%3Cpath%20d='M25%2019%2030%2028%2025%2031%2020%2028Z'%20fill='%232563eb'/%3E%3C/svg%3E" />
@@ -32,14 +40,13 @@
   --shadow-lg: 0 12px 40px rgba(26,26,46,0.18);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-/* --app-h is the real visible viewport height, set from JS. iOS Safari's vh/dvh
-   can resolve taller than what the user can actually see, which left the page
-   background exposed as a band under the map. */
+/* --app-h is the visible viewport. svh is the pre-JS fallback: dvh can
+   outrun what iOS Safari actually shows. */
 html, body {
   height: 100%;
-  height: 100dvh;
-  height: var(--app-h, 100dvh);
-  max-height: var(--app-h, 100dvh);
+  height: 100svh;
+  height: var(--app-h, 100svh);
+  max-height: var(--app-h, 100svh);
   overflow: hidden;
 }
 html { background: var(--snow); }
@@ -438,12 +445,11 @@ header #sidebarToggle:hover {
   header .subtitle, .header-count { display: none; }
   .search-wrap { flex: 1 1 auto; min-width: 0; max-width: none; }
   #search { height: 30px; font-size: 16px; padding: 0 28px 0 32px; }
-  /* one horizontally scrollable strip: type, country and basemap all stay
-     reachable without opening the drawer */
   .controls {
     flex-wrap: nowrap;
     overflow-x: auto;
-    overscroll-behavior-x: contain;
+    overflow-y: hidden;
+    overscroll-behavior: none;
     scrollbar-width: none;
     gap: 6px;
     padding: 6px 10px;
@@ -2613,16 +2619,15 @@ sidebarToggle.addEventListener('click', function () {
   requestAnimationFrame(relayoutMap);
 });
 
-// Pin the app to the height the user can actually see. iOS Safari reports a
-// dvh that can outrun the visible area, which pushed the header off-screen and
-// left a band of page background under the map.
 function setAppHeight() {
-  // An open soft keyboard shrinks the visual viewport; keep the layout put
-  // while a field is focused so the map does not collapse under the keyboard.
+  // Keep layout put while a field is focused so the map does not collapse
+  // under the iOS keyboard.
   const active = document.activeElement;
   if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
   const vv = window.visualViewport;
-  const h = Math.round(vv ? vv.height : window.innerHeight);
+  // Pinch-zoom shrinks visualViewport.height; do not resize the app under it.
+  if (vv && Math.abs(vv.scale - 1) > 0.01) return;
+  const h = Math.floor(vv ? vv.height : window.innerHeight);
   if (h > 0) document.documentElement.style.setProperty('--app-h', h + 'px');
 }
 setAppHeight();
@@ -2631,7 +2636,6 @@ window.addEventListener('orientationchange', function () { setTimeout(setAppHeig
 searchEl.addEventListener('blur', function () { setTimeout(setAppHeight, 60); });
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', setAppHeight);
-  window.visualViewport.addEventListener('scroll', setAppHeight);
 }
 
 window.addEventListener('resize', relayoutMap);

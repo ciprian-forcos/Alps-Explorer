@@ -565,15 +565,38 @@ async function openDrawer(page) {
       });
       const visible = cs.display !== 'none' && cs.visibility !== 'hidden' && h >= 8;
       const compact = h <= window.innerHeight * 0.12;
+      const yLocked = cs.overflowY === 'hidden';
       return {
-        pass: visible && compact && !drawerOpen && missing.length === 0,
-        reason: 'display=' + cs.display + ' height=' + Math.round(h) +
+        pass: visible && compact && !drawerOpen && yLocked && missing.length === 0,
+        reason: 'display=' + cs.display + ' overflow-y=' + cs.overflowY +
+          ' height=' + Math.round(h) +
           ' (' + (h / window.innerHeight * 100).toFixed(1) + '% of viewport)' +
           ' drawerOpen=' + drawerOpen +
           (missing.length ? ' unreachable=' + missing.join(',') : ' all 8 controls hit-testable')
       };
     });
     check('mobile filters reachable without the drawer, strip stays compact', filters.pass, filters.reason);
+
+    // ---- 7a. header / List toggle stay inside the visual viewport ----
+    const chromeOnScreen = await page.evaluate(() => {
+      const header = document.querySelector('header');
+      const toggle = document.getElementById('sidebarToggle');
+      if (!header || !toggle) return { pass: false, reason: 'header or #sidebarToggle missing' };
+      const hr = header.getBoundingClientRect();
+      const tr = toggle.getBoundingClientRect();
+      const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+      const hit = document.elementFromPoint(tr.x + tr.width / 2, tr.y + tr.height / 2);
+      const headerVisible = hr.top >= -1 && hr.bottom > 8 && hr.top < vh;
+      const toggleVisible = tr.width > 0 && tr.height > 0 && tr.top >= -1 && tr.bottom <= vh + 1;
+      const toggleHit = !!(hit && (toggle === hit || toggle.contains(hit)));
+      return {
+        pass: headerVisible && toggleVisible && toggleHit,
+        reason: 'header top=' + Math.round(hr.top) + ' bottom=' + Math.round(hr.bottom) +
+          ' toggle top=' + Math.round(tr.top) + ' hit=' +
+          (hit && (hit.id || hit.tagName) || 'none')
+      };
+    });
+    check('mobile header and List toggle stay on-screen', chromeOnScreen.pass, chromeOnScreen.reason);
 
     // ---- 7b. app box matches the visible viewport, no page background exposed ----
     // Tester feedback 2026-09-01: "o mare bara albastra jos" — the --ink page
@@ -599,6 +622,33 @@ async function openDrawer(page) {
     });
     const fit = await measureFit();
     check('app box equals the visible viewport (no background band)', fit.pass, fit.reason);
+
+    // ---- 7c. pinch-zoom must not rewrite --app-h ----
+    const pinch = await page.evaluate(() => {
+      const vv = window.visualViewport;
+      if (!vv) return { pass: false, reason: 'no visualViewport' };
+      const before = getComputedStyle(document.documentElement).getPropertyValue('--app-h').trim();
+      const proto = Object.getPrototypeOf(vv);
+      const desc = Object.getOwnPropertyDescriptor(proto, 'scale') ||
+        Object.getOwnPropertyDescriptor(vv, 'scale');
+      let restored = false;
+      try {
+        Object.defineProperty(vv, 'scale', { configurable: true, get: function () { return 2; } });
+        restored = true;
+        vv.dispatchEvent(new Event('resize'));
+        window.dispatchEvent(new Event('resize'));
+        const during = getComputedStyle(document.documentElement).getPropertyValue('--app-h').trim();
+        return { pass: during === before, reason: 'before=' + before + ' during-scale-2=' + during };
+      } catch (err) {
+        return { pass: false, reason: 'could not stub visualViewport.scale: ' + err };
+      } finally {
+        if (restored) {
+          if (desc) Object.defineProperty(vv, 'scale', desc);
+          else delete vv.scale;
+        }
+      }
+    });
+    check('pinch-zoom scale does not collapse --app-h', pinch.pass, pinch.reason);
 
     // ---- 8. default basemap is Terrain ----
     const terrain = await page.evaluate(() => {
